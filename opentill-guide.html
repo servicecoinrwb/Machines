@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What OpenTill is</title>
+<meta name="description" content="A shared collection rail for stablecoins: tip jars, instant splits, and subscriptions you cancel by taking back permission.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#221a2c; --void-2:#2c2338; --paper:#f8f3e9;
+    --coral:#ff5d47; --mint:#4fd3a4; --gold:#e0a63a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--void);color:var(--paper);font-family:"Karla",system-ui,sans-serif;
+    font-size:16px;line-height:1.65;padding:26px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:34px;flex-wrap:wrap}
+  .mark{display:flex;align-items:baseline;gap:9px}
+  .mark b{font-family:"Fraunces",serif;font-weight:700;font-size:25px;letter-spacing:-.02em}
+  .mark b i{font-style:normal;color:var(--coral)}
+  .mark span{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:rgba(248,243,233,.4)}
+  .back{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--coral);text-decoration:none;border:1px solid rgba(255,93,71,.4);padding:6px 12px;border-radius:99px}
+  .back:hover{background:rgba(255,93,71,.1)}
+
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(31px,7.5vw,46px);line-height:1.05;
+    letter-spacing:-.03em;margin:0 0 16px}
+  h1 em{font-style:italic;color:var(--coral)}
+  .lede{font-size:17px;color:rgba(248,243,233,.72);margin:0 0 8px;max-width:56ch}
+
+  h2{font-family:"Fraunces",serif;font-weight:600;font-size:24px;letter-spacing:-.02em;
+    margin:46px 0 12px}
+  h3{font-family:"Fraunces",serif;font-weight:600;font-size:18px;margin:26px 0 6px}
+  p{color:rgba(248,243,233,.72);margin:0 0 14px;max-width:62ch}
+  b{color:var(--paper);font-weight:600}
+
+  .case{background:var(--void-2);border:1px solid rgba(248,243,233,.1);border-radius:12px;
+    padding:20px;margin:0 0 12px}
+  .case .who{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.15em;
+    text-transform:uppercase;color:var(--coral);margin:0 0 8px}
+  .case h3{margin:0 0 7px;font-size:19px}
+  .case p{margin:0 0 10px;font-size:14.5px;color:rgba(248,243,233,.68)}
+  .case p:last-child{margin:0}
+  .shares{display:flex;height:26px;border-radius:6px;overflow:hidden;margin:12px 0 10px}
+  .shares div{display:flex;align-items:center;justify-content:center;
+    font-family:"IBM Plex Mono",monospace;font-size:10px;color:#fff;border-right:2px solid var(--void-2)}
+  .shares div:last-child{border-right:0}
+
+  table{width:100%;border-collapse:collapse;margin:8px 0 18px;font-size:14.5px}
+  th,td{text-align:left;padding:10px 0;border-bottom:1px solid rgba(248,243,233,.11);
+    color:rgba(248,243,233,.72);vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+    color:rgba(248,243,233,.4);font-weight:400}
+  td:first-child{color:var(--paper);width:40%;padding-right:16px}
+
+  .plain{border-left:2px solid var(--coral);padding:2px 0 2px 16px;margin:20px 0}
+  .plain p{font-size:15px;color:rgba(248,243,233,.66)}
+  .plain p:last-child{margin:0}
+
+  .cta{display:inline-block;background:var(--coral);color:#2a0f09;font-weight:600;font-size:15px;
+    text-decoration:none;padding:13px 22px;border-radius:8px;margin-top:10px}
+  .cta:hover{filter:brightness(1.08)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid rgba(248,243,233,.11);
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;line-height:1.8;color:rgba(248,243,233,.35)}
+  footer a{color:var(--coral)}
+  a{color:var(--coral)}
+  @media (max-width:520px){ td:first-child{width:auto} table,tbody,tr,td,th{display:block}
+    th{display:none} tr{border-bottom:1px solid rgba(248,243,233,.11);padding:10px 0}
+    td{border:0;padding:2px 0} td:first-child{color:var(--paper);font-weight:600} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark"><b>Open<i>Till</i></b><span>on Arc</span></div>
+    <a class="back" href="./opentill.html">Open the app</a>
+  </div>
+
+  <h1>Getting paid together, <em>without a middleman holding it</em>.</h1>
+  <p class="lede">Four people play a gig. One of them collects, then spends a week chasing the others down. A church takes donations through a processor that keeps 2.9% and settles Tuesday. Someone subscribes to your newsletter and needs three emails to cancel.</p>
+  <p class="lede">All three are the same problem: money sitting somewhere it shouldn't, under rules only one side controls.</p>
+
+  <h2>Three shapes, one thing</h2>
+  <p>A <b>till</b> is a named pot with a link. What makes it a tip jar, a split, or a subscription is just how many payees it has and whether payments repeat.</p>
+
+  <div class="case">
+    <p class="who">Tip jar · one payee</p>
+    <h3>The busker</h3>
+    <p>A QR code in an open guitar case. Someone scans it, sends four dollars, and it's in your wallet before the next song. No account, no chargeback, no 30¢ minimum eating a small tip.</p>
+    <div class="shares"><div style="width:100%;background:#e14a34">100%</div></div>
+  </div>
+
+  <div class="case">
+    <p class="who">Split · several payees</p>
+    <h3>The four-piece band</h3>
+    <p>Bar pays $850 for the night. It hits the till and divides on the way in — nobody holds anyone else's money, nobody Venmos anybody on Monday.</p>
+    <div class="shares">
+      <div style="width:40%;background:#e14a34">40% lead</div>
+      <div style="width:25%;background:#1f9c74">25% bass</div>
+      <div style="width:25%;background:#c98a1e">25% drums</div>
+      <div style="width:10%;background:#5b4b8a">10% van</div>
+    </div>
+    <p>That last slice is worth noticing: a payee doesn't have to be a person. Ten percent to the van fund, or the PA, or a charity, taken off the top automatically instead of remembered later.</p>
+  </div>
+
+  <div class="case">
+    <p class="who">Plan · repeating</p>
+    <h3>The monthly supporter</h3>
+    <p>Five dollars a month to a newsletter. The supporter grants permission for a set amount, and the charge pulls against it on schedule.</p>
+    <p><b>Cancelling is taking the permission back.</b> It happens in their own wallet, in one action, with nobody to talk to and no offer of two months free. That's not a policy anyone chose to be generous — the contract simply can't move money it wasn't permitted to move.</p>
+  </div>
+
+  <h2>What it costs</h2>
+  <table>
+    <tr><th>Route</th><th>On $850</th></tr>
+    <tr><td>Card processor at 2.9% + 30¢</td><td>about $25 gone, funds land in 2–3 days</td></tr>
+    <tr><td>Payment app, then four manual transfers</td><td>fees vary, plus somebody's afternoon</td></tr>
+    <tr><td>OpenTill on Arc</td><td>a fraction of a cent in gas, split and settled in under a second</td></tr>
+  </table>
+  <p>The reason it's that cheap is Arc: USDC is the network's own gas token, so the person paying doesn't have to hold anything except the dollars they're already sending.</p>
+
+  <h2>What it won't do</h2>
+  <div class="plain">
+    <p><b>It can't hold your money, on purpose.</b> Every payment passes straight through to the payees in the same transaction. There's no balance in the contract, no withdraw button, and no admin key — which also means no escrow, no refunds, and no undo.</p>
+    <p><b>Payees are fixed when the till is created.</b> Nobody can edit them afterward, including whoever made it. If the band's split changes, that's a new till. This is deliberate: a till whose payees could be edited is a till whose income could be redirected after the gig.</p>
+    <p><b>It can't force a charge.</b> If a subscriber revokes permission or spends their balance, the charge fails and nothing happens. Nothing here chases anyone.</p>
+    <p><b>It's unaudited, and it's on a testnet.</b> Every dollar you see is play money from a faucet. The contract is short, holds nothing, and its split math is verified against a reproducible simulation — but that's not a professional review, and Arc's mainnet hasn't launched.</p>
+  </div>
+
+  <h2>Try it</h2>
+  <p>Grab a dollar of test USDC from <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's faucet</a>, open a till with your own address as the only payee, and pay yourself. The whole loop takes about two minutes and costs less than a cent.</p>
+  <a class="cta" href="./opentill.html">Open the app →</a>
+
+  <footer>
+    OpenTill · Arc Testnet, chain 5042002<br>
+    Contract <a href="https://testnet.arcscan.app/address/0x8be1e1F32EBcD7Cb8a8c844bb4506b6C73181B6E" target="_blank" rel="noopener">0x8be1…1B6E</a>, source verified onchain — read it before you trust any of this.
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Blindside is</title>
+<meta name="description" content="Sealed-bid auctions on a public chain — commit a hash, reveal after bidding closes, and nobody snipes you by a penny.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch:#16151a; --char:#1f1e25; --char-2:#2a2831;
+    --bone:#ece7dd; --gold:#d9a441; --seal:#b6414e; --moss:#5f9e6e;
+    --line:rgba(236,231,221,.13);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--pitch);color:var(--bone);font-family:"Archivo",system-ui,sans-serif;
+    font-size:16px;line-height:1.68;padding:26px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:34px;flex-wrap:wrap}
+  .mark{font-family:"Bodoni Moda",serif;font-weight:600;font-size:27px}
+  .mark i{font-style:italic;font-weight:400;color:var(--gold)}
+  .back{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--gold);text-decoration:none;border:1px solid rgba(217,164,65,.35);padding:6px 13px}
+  .back:hover{background:rgba(217,164,65,.09)}
+
+  h1{font-family:"Bodoni Moda",serif;font-weight:400;font-size:clamp(31px,7.5vw,46px);
+    line-height:1.06;margin:0 0 16px}
+  h1 i{font-style:italic;color:var(--gold)}
+  .lede{font-size:17px;color:rgba(236,231,221,.68);margin:0 0 10px;max-width:57ch}
+
+  h2{font-family:"Bodoni Moda",serif;font-weight:400;font-size:26px;margin:48px 0 12px}
+  h3{font-family:"Bodoni Moda",serif;font-weight:400;font-size:20px;margin:0 0 6px}
+  p{color:rgba(236,231,221,.68);margin:0 0 14px;max-width:62ch}
+  b{color:var(--bone);font-weight:500}
+  code{font-family:"Space Mono",monospace;font-size:13px;color:var(--gold)}
+
+  .snipe{background:var(--char);border:1px solid var(--line);padding:20px;margin:22px 0 10px}
+  .snipe-lab{font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+    color:rgba(236,231,221,.4);margin:0 0 14px}
+  .feed{font-family:"Space Mono",monospace;font-size:12.5px;line-height:2}
+  .feed div{display:flex;justify-content:space-between;gap:14px;padding:3px 0;
+    border-bottom:1px solid rgba(236,231,221,.07)}
+  .feed div:last-child{border-bottom:0}
+  .feed .who{color:rgba(236,231,221,.5)}
+  .feed .amt{color:var(--bone)}
+  .feed .win .amt{color:var(--seal)}
+  .feed .win .who{color:var(--seal)}
+  .snipe p{font-size:13.5px;color:rgba(236,231,221,.58);margin:16px 0 0}
+
+  .steps{counter-reset:s;list-style:none;padding:0;margin:16px 0 0}
+  .steps li{counter-increment:s;position:relative;padding:0 0 18px 40px;color:rgba(236,231,221,.68)}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:26px;height:26px;
+    border:1px solid var(--gold);color:var(--gold);font-family:"Space Mono",monospace;font-size:11px;
+    display:flex;align-items:center;justify-content:center}
+  .steps li:last-child{padding-bottom:0}
+  .steps b{color:var(--bone)}
+
+  table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:14.5px}
+  th,td{text-align:left;padding:11px 0;border-bottom:1px solid var(--line);
+    color:rgba(236,231,221,.68);vertical-align:top}
+  th{font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:rgba(236,231,221,.38);font-weight:400}
+  td:first-child{color:var(--bone);width:36%;padding-right:16px}
+
+  .plain{border-left:2px solid var(--seal);padding:2px 0 2px 16px;margin:20px 0}
+  .plain p{font-size:15px;color:rgba(236,231,221,.6)}
+  .plain p:last-child{margin:0}
+
+  .cta{display:inline-block;background:var(--gold);color:#231a08;font-weight:600;font-size:15px;
+    text-decoration:none;padding:13px 22px;margin-top:10px}
+  .cta:hover{filter:brightness(1.09)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--line);
+    font-family:"Space Mono",monospace;font-size:10.5px;line-height:1.8;color:rgba(236,231,221,.3)}
+  footer a{color:var(--gold)}
+  a{color:var(--gold)}
+  @media (max-width:520px){ table,tbody,tr,td,th{display:block} th{display:none}
+    tr{border-bottom:1px solid var(--line);padding:10px 0} td{border:0;padding:2px 0;width:auto}
+    td:first-child{color:var(--bone);font-weight:500} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark">Blind<i>side</i></div>
+    <a class="back" href="./blindside.html">Open the app</a>
+  </div>
+
+  <h1>A public ledger is a terrible place <i>to hold an auction</i>.</h1>
+  <p class="lede">Everything on a blockchain is visible the moment it's sent. So an ordinary onchain auction is one where every bidder can read every other bid in real time — which means the only winning strategy is to bid nothing until the last second, then beat the leader by a penny.</p>
+
+  <div class="snipe">
+    <p class="snipe-lab">An open auction, final minute</p>
+    <div class="feed">
+      <div><span class="who">0x4a…91  ·  09:14</span><span class="amt">400.00</span></div>
+      <div><span class="who">0xb2…7d  ·  09:31</span><span class="amt">450.00</span></div>
+      <div><span class="who">0x4a…91  ·  09:47</span><span class="amt">475.00</span></div>
+      <div class="win"><span class="who">0xf0…03  ·  09:59:58</span><span class="amt">475.01</span></div>
+    </div>
+    <p>The last address never bid at all until the end. It didn't have to value the item, or think about it, or risk anything — it just read the leader and added a cent. Everyone who bid honestly spent the hour telling it exactly what to do.</p>
+  </div>
+
+  <h2>What a hash fixes</h2>
+  <p>You can't hide a number on a public chain. But you can post something that <b>proves</b> you picked a number without revealing which one — a hash. Run 475.00 through keccak and you get a 64-character string that looks like noise. Nobody can work backwards from it. But when you later say "it was 475.00," anyone can run the same function and confirm it matches.</p>
+
+  <ol class="steps">
+    <li><b>Commit.</b> Your browser hashes your bid together with a secret salt and your address, and sends only that hash. Alongside it you lock a deposit.</li>
+    <li><b>Deposit more than you bid.</b> This is the part people miss. If everyone deposits exactly what they bid, the transfer amount gives the bid away and the hash was pointless. Deposit a round number well above your bid and the amount says nothing.</li>
+    <li><b>Reveal.</b> Once bidding closes, you republish the bid and salt. The contract recomputes the hash. If it matches, the bid counts — and since the commitment is already on chain, you can't change your mind after seeing anyone else's number.</li>
+    <li><b>Settle.</b> Highest revealed bid wins and pays exactly that. Everyone else claims their deposit back in full, and the winner claims back whatever they over-deposited.</li>
+  </ol>
+
+  <h2>The two questions everyone asks</h2>
+
+  <h3>What if I lose the secret?</h3>
+  <p>You can't. The salt isn't a file or a password — it's derived from a signature your wallet makes over a fixed message. Same wallet, same lot, same salt, on any device, forever. If your laptop dies, open the page on your phone, sign again, and reveal.</p>
+
+  <h3>What if the highest bidder just never reveals?</h3>
+  <p>Then their bid doesn't count and the next-highest revealed bid wins. Their deposit is returned in full — no penalty. That sounds exploitable until you notice the timing: you can't see anyone else's bid before the reveal window opens, so choosing not to reveal tells you nothing you didn't already know. It's a way to withdraw, not a way to cheat. Punishing it would mostly punish people whose laptop died.</p>
+
+  <h2>Who this is for</h2>
+  <table>
+    <tr><th>Situation</th><th>Why sealed helps</th></tr>
+    <tr><td>Selling used equipment</td><td>Buyers bid what it's worth to them rather than one dollar above the last guy. Sellers usually do better.</td></tr>
+    <tr><td>Contract tenders</td><td>The whole point of a sealed tender is that nobody undercuts a number they weren't supposed to see.</td></tr>
+    <tr><td>Anything with few bidders</td><td>Open auctions with three people become a staring contest. Sealed bids force each of them to name a real number.</td></tr>
+    <tr><td>Domains, allocations, slots</td><td>Sniping is the whole failure mode, and this removes the information that makes it work.</td></tr>
+  </table>
+
+  <h2>What it won't do</h2>
+  <div class="plain">
+    <p><b>Your deposit is locked for the whole auction.</b> Both phases have to close before anyone claims. That's the price of the deposit being credible.</p>
+    <p><b>Nothing is delivered.</b> This settles money, not goods. The contract has no idea whether the threader ever showed up, and it can't help you if it doesn't. Use it with people you'd already do business with, or for things where handover is trivial.</p>
+    <p><b>A ties goes to whoever revealed first.</b> Not to whoever committed first, which is slightly arbitrary. Exact ties on a dollar amount are rare, but they're resolved by reveal order.</p>
+    <p><b>The seller can't cancel once bids exist</b> — which protects bidders, but also means a seller who changes their mind is stuck until settlement.</p>
+    <p><b>Unaudited, on a testnet.</b> The commitment scheme is verified against a simulation checking that deposits don't leak bids, stolen reveals can't be replayed, and 2,000 randomized settlements all balance to the cent. That is not a professional review.</p>
+  </div>
+
+  <h2>Try it</h2>
+  <p>List something with five-minute phases, bid from a second wallet, and deposit more than you bid. The whole cycle — commit, reveal, settle, claim — runs in about ten minutes and costs a few cents. Test USDC from <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's faucet</a>.</p>
+  <a class="cta" href="./blindside.html">Open the app →</a>
+
+  <footer>
+    Blindside · Arc Testnet, chain 5042002<br>
+    Contract <a href="https://testnet.arcscan.app/address/0x2509FC4E05BF42c3E7B739f2B19d62fBD2b2f5e2" target="_blank" rel="noopener">0x2509…f5e2</a>, source verified onchain — read it before you trust any of this.
+  </footer>
+</div>
+</body>
+</html>

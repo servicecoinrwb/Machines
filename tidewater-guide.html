@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Tidewater is</title>
+<meta name="description" content="Payment streams in stablecoins — money that accrues by the second instead of settling in arrears.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#0e211d; --deep-2:#152f29; --deep-3:#1c3a33;
+    --sand:#f1ede2; --aqua:#5ad6bd; --amber:#e8a33d; --rust:#e0664a;
+    --line:rgba(241,237,226,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--deep);color:var(--sand);font-family:"Public Sans",system-ui,sans-serif;
+    font-size:16px;line-height:1.68;padding:26px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:34px;flex-wrap:wrap}
+  .mark{font-family:"Instrument Serif",serif;font-size:27px;letter-spacing:-.01em}
+  .mark i{font-style:italic;color:var(--aqua)}
+  .back{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--aqua);text-decoration:none;border:1px solid rgba(90,214,189,.35);padding:6px 13px;border-radius:99px}
+  .back:hover{background:rgba(90,214,189,.09)}
+
+  h1{font-family:"Instrument Serif",serif;font-weight:400;font-size:clamp(32px,7.5vw,48px);
+    line-height:1.06;letter-spacing:-.01em;margin:0 0 16px}
+  h1 i{font-style:italic;color:var(--aqua)}
+  .lede{font-size:17px;color:rgba(241,237,226,.7);margin:0 0 10px;max-width:57ch}
+
+  h2{font-family:"Instrument Serif",serif;font-weight:400;font-size:26px;margin:48px 0 12px}
+  h3{font-family:"Instrument Serif",serif;font-weight:400;font-size:20px;margin:0 0 6px}
+  p{color:rgba(241,237,226,.7);margin:0 0 14px;max-width:62ch}
+  b{color:var(--sand);font-weight:500}
+
+  /* the split diagram — the one idea worth drawing */
+  .split{background:var(--deep-2);border:1px solid var(--line);border-radius:14px;padding:22px;margin:22px 0 10px}
+  .split-lab{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.15em;
+    text-transform:uppercase;color:rgba(241,237,226,.4);margin:0 0 14px}
+  .bar{display:flex;height:44px;border-radius:8px;overflow:hidden}
+  .bar div{display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;
+    font-size:11.5px;font-weight:500}
+  .b-earned{background:var(--aqua);color:#06201b}
+  .b-rest{background:var(--deep-3);color:rgba(241,237,226,.55)}
+  .now{position:relative;height:22px;margin-top:-1px}
+  .now span{position:absolute;left:38%;transform:translateX(-50%);font-family:"JetBrains Mono",monospace;
+    font-size:10px;color:var(--amber);white-space:nowrap;padding-top:5px;
+    border-left:1px solid var(--amber);padding-left:7px}
+  .split p{font-size:13.5px;color:rgba(241,237,226,.6);margin:20px 0 0}
+
+  .case{background:var(--deep-2);border:1px solid var(--line);border-radius:12px;padding:20px;margin:0 0 12px}
+  .case .who{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--aqua);margin:0 0 8px}
+  .case p{font-size:14.5px;color:rgba(241,237,226,.66);margin:0 0 10px}
+  .case p:last-child{margin:0}
+
+  table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:14.5px}
+  th,td{text-align:left;padding:11px 0;border-bottom:1px solid var(--line);
+    color:rgba(241,237,226,.7);vertical-align:top}
+  th{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:rgba(241,237,226,.38);font-weight:400}
+  td:first-child{color:var(--sand);width:38%;padding-right:16px}
+
+  .plain{border-left:2px solid var(--rust);padding:2px 0 2px 16px;margin:20px 0}
+  .plain p{font-size:15px;color:rgba(241,237,226,.62)}
+  .plain p:last-child{margin:0}
+
+  .cta{display:inline-block;background:var(--aqua);color:#06201b;font-weight:600;font-size:15px;
+    text-decoration:none;padding:13px 22px;border-radius:8px;margin-top:10px}
+  .cta:hover{filter:brightness(1.08)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--line);
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;line-height:1.8;color:rgba(241,237,226,.3)}
+  footer a{color:var(--aqua)}
+  a{color:var(--aqua)}
+  @media (max-width:520px){ table,tbody,tr,td,th{display:block} th{display:none}
+    tr{border-bottom:1px solid var(--line);padding:10px 0} td{border:0;padding:2px 0;width:auto}
+    td:first-child{color:var(--sand);font-weight:500} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark">Tide<i>water</i></div>
+    <a class="back" href="./tidewater.html">Open the app</a>
+  </div>
+
+  <h1>Payment is a moment. <i>Work isn't.</i></h1>
+  <p class="lede">You earn a salary every second you're on the clock, and receive it every two weeks. Rent covers a month you occupy continuously, and moves in one lump on the first. A retainer is drawn down day by day and invoiced in arrears.</p>
+  <p class="lede">Every one of those is a continuous thing settled in discrete jumps, because moving money used to be expensive. It isn't any more.</p>
+
+  <div class="split">
+    <p class="split-lab">1,000 USDC over 30 days · day 11</p>
+    <div class="bar">
+      <div class="b-earned" style="width:38%">366.66 earned</div>
+      <div class="b-rest" style="width:62%">633.34 still the sender's</div>
+    </div>
+    <div class="now"><span>now</span></div>
+    <p>There's no third category. At every instant the deposit is divided in exactly two, and that line moves left to right on its own. Stopping the stream doesn't negotiate anything — it just freezes the line and pays both sides what's already on their side of it.</p>
+  </div>
+
+  <h2>Where it fits</h2>
+
+  <div class="case">
+    <p class="who">Contract work</p>
+    <h3>A retainer that draws itself down</h3>
+    <p>Instead of invoicing at month end and waiting on net-30, the client funds the month up front and it accrues to you daily. You can see it's real before you start. They can see exactly what they've paid for at any moment.</p>
+    <p>If the engagement ends on the 12th, neither side argues about the split — the contract already knows.</p>
+  </div>
+
+  <div class="case">
+    <p class="who">Vesting</p>
+    <h3>A grant nobody can claw back</h3>
+    <p>Open it as <b>unstoppable</b> and the cancel function is gone for everyone, including whoever funded it. The recipient is guaranteed the full amount over the full window, enforced by code rather than by a promise.</p>
+    <p>That's a stronger commitment than most equity agreements, and it's one checkbox.</p>
+  </div>
+
+  <div class="case">
+    <p class="who">Rent, subscriptions, allowances</p>
+    <h3>Anything paid for time</h3>
+    <p>A month's rent accruing hourly to the landlord. An allowance that arrives continuously instead of on Sundays. The pattern fits anywhere the thing being paid for is measured in time rather than in units.</p>
+  </div>
+
+  <h2>How it actually works</h2>
+  <table>
+    <tr><th>Step</th><th>What happens</th></tr>
+    <tr><td>Open</td><td>The full amount moves into the contract. Not an allowance, not a promise — it's there, and the recipient can verify it.</td></tr>
+    <tr><td>Accrue</td><td>Nothing runs on a timer. The contract computes what's earned from elapsed time whenever anyone asks, so there's no keeper to fail and no gas burned per second.</td></tr>
+    <tr><td>Withdraw</td><td>The recipient takes some or all of what's accrued, whenever they like. The rest keeps flowing.</td></tr>
+    <tr><td>Stop</td><td>Either party ends it. Recipient takes what's accrued, sender gets the remainder back, both in the same transaction.</td></tr>
+  </table>
+  <p>That second row is the trick. A stream that had to be pushed forward every second would cost more in gas than it moved. Instead the number is derived, not stored — which is why a five-minute stream and a five-year stream cost the same to run.</p>
+
+  <h2>What it won't do</h2>
+  <div class="plain">
+    <p><b>Your capital is locked for the duration.</b> Full funding is what makes the recipient's balance real, and the cost is that the money isn't doing anything else. On a year-long stream that's a genuine tradeoff, not a detail.</p>
+    <p><b>Either side can stop a cancellable stream.</b> That's symmetric on purpose — but it means a recipient counting on future income doesn't have a guarantee unless the stream was opened unstoppable. Check which one you're in.</p>
+    <p><b>Unstoppable really is unstoppable.</b> No admin, no override, no recovery. If you fund one to the wrong address, that money is gone and nobody on earth can retrieve it.</p>
+    <p><b>Rounding favours the sender by fractions.</b> Integer division truncates, so the accrued figure is never above the true value. The difference is at most a millionth of a dollar, and it resolves exactly at the end — the final second returns the whole deposit, not a rounded approximation.</p>
+    <p><b>Unaudited, on a testnet.</b> The math is verified against a simulation covering thousands of randomized cancels with zero value leak, and the contract holds no admin key. That's not a professional review.</p>
+  </div>
+
+  <h2>Try it</h2>
+  <p>A five-minute demo stream costs a fraction of a cent and shows the whole idea — open one to a second wallet and watch six decimal places move. Test USDC comes from <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's faucet</a>.</p>
+  <a class="cta" href="./tidewater.html">Open the app →</a>
+
+  <footer>
+    Tidewater · Arc Testnet, chain 5042002<br>
+    Contract <a href="https://testnet.arcscan.app/address/0xc85B727f88C3D8daE88d404411C16d1D8f7a5015" target="_blank" rel="noopener">0xc85B…5015</a>, source verified onchain — read it before you trust any of this.
+  </footer>
+</div>
+</body>
+</html>

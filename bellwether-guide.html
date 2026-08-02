@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Bellwether is</title>
+<meta name="description" content="Parimutuel prediction markets in stablecoins — two sides, one pot, and an explicit answer to who decides the outcome.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4f1e9; --paper-2:#eae5d9; --ink:#1b1a17;
+    --dim:rgba(27,26,23,.65); --faint:rgba(27,26,23,.4);
+    --rule:rgba(27,26,23,.18); --rule-hard:rgba(27,26,23,.4);
+    --yes:#1d6f56; --no:#a83232; --accent:#b03a1e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--paper);
+    background-image:radial-gradient(1000px 500px at 50% 0,rgba(27,26,23,.035),transparent 70%);
+    color:var(--ink);font-family:"Public Sans",system-ui,sans-serif;
+    font-size:16px;line-height:1.68;padding:24px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:660px}
+
+  .mast{border-bottom:3px double var(--rule-hard);padding-bottom:12px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+  .name{font-family:"Newsreader",serif;font-weight:600;font-size:33px;line-height:1;
+    letter-spacing:-.02em;margin:0}
+  .name i{font-style:italic;color:var(--accent)}
+  .back{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent);text-decoration:none;border:1px solid rgba(176,58,30,.45);padding:6px 13px}
+  .back:hover{background:rgba(176,58,30,.07)}
+  .dateline{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--rule);
+    padding-bottom:10px;margin-bottom:28px}
+
+  h1{font-family:"Newsreader",serif;font-weight:600;font-size:clamp(30px,7vw,44px);line-height:1.08;
+    letter-spacing:-.02em;margin:0 0 16px}
+  h1 i{font-style:italic;color:var(--accent)}
+  .lede{font-size:17px;color:var(--dim);margin:0 0 10px;max-width:57ch}
+
+  h2{font-family:"Newsreader",serif;font-weight:600;font-size:25px;margin:46px 0 12px;letter-spacing:-.01em}
+  h3{font-family:"Newsreader",serif;font-weight:600;font-size:19px;margin:0 0 6px}
+  p{color:var(--dim);margin:0 0 14px;max-width:62ch}
+  b{color:var(--ink);font-weight:600}
+
+  /* the pot diagram */
+  .pot{border:1px solid var(--rule-hard);background:#fbf9f4;padding:20px;margin:22px 0 10px}
+  .pot-lab{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.15em;
+    text-transform:uppercase;color:var(--faint);margin:0 0 14px}
+  .bar{display:flex;height:38px;border:1px solid var(--rule-hard)}
+  .bar div{display:flex;align-items:center;justify-content:center;color:#fff;
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+  .b-y{background:var(--yes)} .b-n{background:var(--no)}
+  .split{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+    font-size:10.5px;color:var(--faint);margin-top:7px}
+  .pot p{font-size:13.5px;margin:16px 0 0}
+
+  .who{border:1px solid var(--rule-hard);background:#fbf9f4;padding:19px;margin:0 0 12px}
+  .who .tagline{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+  .who p{font-size:14.5px;margin:0 0 10px}
+  .who p:last-child{margin:0}
+
+  ol.flow{counter-reset:s;list-style:none;padding:0;margin:14px 0 0}
+  ol.flow li{counter-increment:s;position:relative;padding:0 0 16px 38px;color:var(--dim);font-size:15px}
+  ol.flow li::before{content:counter(s);position:absolute;left:0;top:2px;width:24px;height:24px;
+    border:1px solid var(--rule-hard);font-family:"IBM Plex Mono",monospace;font-size:11px;
+    display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  ol.flow li:last-child{padding-bottom:0}
+
+  table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:14.5px}
+  th,td{text-align:left;padding:11px 0;border-bottom:1px solid var(--rule);color:var(--dim);vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--faint);font-weight:400}
+  td:first-child{color:var(--ink);width:40%;padding-right:16px}
+
+  .plain{border-left:2px solid var(--no);padding:2px 0 2px 16px;margin:20px 0}
+  .plain p{font-size:15px;color:var(--dim)}
+  .plain p:last-child{margin:0}
+
+  .cta{display:inline-block;background:var(--ink);color:var(--paper);font-weight:600;font-size:15px;
+    text-decoration:none;padding:13px 22px;margin-top:10px}
+  .cta:hover{opacity:.87}
+
+  footer{margin-top:48px;padding-top:18px;border-top:3px double var(--rule-hard);
+    font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.85;color:var(--faint);text-align:center}
+  footer a{color:var(--accent)}
+  a{color:var(--accent)}
+  @media (max-width:520px){ table,tbody,tr,td,th{display:block} th{display:none}
+    tr{border-bottom:1px solid var(--rule);padding:10px 0} td{border:0;padding:2px 0;width:auto}
+    td:first-child{color:var(--ink);font-weight:600} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="mast">
+    <h1 class="name" style="font-size:33px;margin:0">Bell<i>wether</i></h1>
+    <a class="back" href="./bellwether.html">Open the app</a>
+  </div>
+  <div class="dateline">A guide · Arc Testnet · chain 5042002</div>
+
+  <h1>The hard part was never the money. <i>It's who decides the fact.</i></h1>
+  <p class="lede">Building a betting pool is easy — take stakes from both sides, pay the winners. Every prediction market that has ever failed, failed at the next step: something has to declare what actually happened, and that something can be wrong, bribed, or simply absent.</p>
+  <p class="lede">So this contract doesn't hide the answer. It makes you pick a resolver before anyone stakes a dollar.</p>
+
+  <h2>One pot, split by belief</h2>
+  <p>There's no order book and nobody to match with. Both sides stake into a single pool, and whoever backed the correct outcome divides the whole thing in proportion to what they put in. The odds are just the shape of the pool.</p>
+
+  <div class="pot">
+    <p class="pot-lab">350.00 staked · Yes wins</p>
+    <div class="bar">
+      <div class="b-y" style="width:43%">Yes 150.00</div>
+      <div class="b-n" style="width:57%">No 200.00</div>
+    </div>
+    <div class="split"><span>43% implied</span><span>57% implied</span></div>
+    <p>Everyone on Yes splits the whole 350 pro rata. Someone who staked 100 of that 150 takes about 229 back — their money doubled and a half, because more people were wrong than right. If the pools had been reversed, so would the payout.</p>
+  </div>
+
+  <p>Because every payout is a division of money already deposited, the contract can never owe more than it holds. There is no leverage, no margin call and no scenario where it runs dry.</p>
+
+  <h2>Two ways to settle it</h2>
+
+  <div class="who">
+    <p class="tagline">Mode one</p>
+    <h3>A price feed decides</h3>
+    <p>The market names an oracle, a number and a comparison — <i>above</i>, <i>below</i>, <i>at or above</i>. After the close, anyone can settle it and the contract reads the answer itself. No human touches the outcome.</p>
+    <p>This is the better mode when it's available, and it only works for questions a feed can answer. It also refuses to settle from a stale feed: if the oracle has gone quiet for more than two hours, the transaction reverts rather than letting a frozen number decide.</p>
+  </div>
+
+  <div class="who">
+    <p class="tagline">Mode two</p>
+    <h3>People decide, with money at stake</h3>
+    <p>Anyone proposes the outcome and posts a bond. A challenge window opens. If nobody objects, the proposal stands and the bond comes back. If someone does object — posting a matching bond — the arbiter named at creation rules, and the losing bond pays them for the work.</p>
+    <p>The arbiter is public before the first stake. You're never asked to trust someone you didn't agree to.</p>
+  </div>
+
+  <ol class="flow">
+    <li><b>Open.</b> Write the question, pick the resolver, set your fee.</li>
+    <li><b>Stake.</b> Both sides put money down. Odds move with every stake.</li>
+    <li><b>Close.</b> Staking ends. Nothing more goes in.</li>
+    <li><b>Resolve.</b> The feed answers, or someone proposes and the window runs.</li>
+    <li><b>Claim.</b> Winners collect their share; the creator's fee comes off the pot.</li>
+  </ol>
+
+  <h2>When it can't resolve, nobody loses</h2>
+  <p>This is the clause worth reading twice. A market that gets stuck must not become a market nobody can exit.</p>
+  <table>
+    <tr><th>What went wrong</th><th>What happens</th></tr>
+    <tr><td>The arbiter never rules</td><td>After seven days anyone can void it. Every stake is refunded in full and both bonds go back — neither party is at fault for someone else's silence.</td></tr>
+    <tr><td>Only one side ever staked</td><td>Voided automatically. The "winners" didn't beat anyone, they guessed unopposed, so everyone gets their money back instead.</td></tr>
+    <tr><td>The price feed is frozen</td><td>Settlement reverts rather than resolving on stale data.</td></tr>
+  </table>
+  <p>No fee is taken on a voided market. The creator is paid for markets that resolve — not for markets they started.</p>
+
+  <h2>What it costs</h2>
+  <table>
+    <tr><th>Who</th><th>What</th></tr>
+    <tr><td>Staking a side</td><td>Nothing beyond gas — a fraction of a cent.</td></tr>
+    <tr><td>Winning</td><td>The creator's fee, set per market and capped at 5% by the contract.</td></tr>
+    <tr><td>Being wrong</td><td>Your stake. That's the whole point.</td></tr>
+  </table>
+
+  <h2>What it isn't</h2>
+  <div class="plain">
+    <p><b>It isn't a casino.</b> There's no house, no edge, and no randomness anywhere in it. You're betting against other people's opinions about a fact, and the contract takes no side.</p>
+    <p><b>The arbiter is a real trust assumption.</b> In human-resolved mode, a dishonest arbiter can rule wrongly and the bond mechanism only makes it expensive, not impossible. Read who it is before you stake.</p>
+    <p><b>Thin markets aren't informative.</b> Two people with fifty dollars don't produce a probability, they produce a number that looks like one. Treat implied odds on a small pool as decoration.</p>
+    <p><b>Prediction markets are regulated in some places.</b> Where real money and real events meet, this is a legal question and not only a technical one. Everything here is testnet play money.</p>
+    <p><b>Unaudited.</b> The settlement math is verified against a simulation covering one-sided markets, voids, ties and four thousand randomized settlements with zero cases of payouts exceeding the pot. That isn't a professional review.</p>
+  </div>
+
+  <h2>Try it</h2>
+  <p>Open a market with a ten-minute close, back one side, take the other from a second wallet, and watch the bar move when the second stake lands. Test USDC from <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's faucet</a>.</p>
+  <a class="cta" href="./bellwether.html">Open the app →</a>
+
+  <footer>
+    Bellwether · Arc Testnet, chain 5042002<br>
+    Contract <a href="https://testnet.arcscan.app/address/0xb3Ce8d295BB73c71F219130f532b348534615a61" target="_blank" rel="noopener">0xb3Ce…5a61</a>, source verified onchain — no owner, no admin, no pause.
+  </footer>
+</div>
+</body>
+</html>
