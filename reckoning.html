@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reckoning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  /* ============================================================
+     The kitchen chalkboard where the house writes down who owes
+     what. Slate ground, chalk type, coloured chalk for the two
+     directions money can point.
+     The signature is a diverging rail: one centre line, everyone's
+     bar running left if they owe and right if they're owed, so a
+     six-way tangle reads in one glance.
+     ============================================================ */
+  :root{
+    --slate:#2a3a33;
+    --slate-2:#33463d;
+    --slate-3:#3d5349;
+    --chalk:#f0ece1;
+    --dim:rgba(240,236,225,.6);
+    --faint:rgba(240,236,225,.36);
+    --line:rgba(240,236,225,.14);
+    --owed:#8fd6a8;    /* they're up   */
+    --owes:#e8a3a3;    /* they're down */
+    --mark:#f0c674;    /* chalk yellow */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--slate);
+    background-image:
+      radial-gradient(1200px 500px at 20% -5%,rgba(255,255,255,.035),transparent 60%),
+      radial-gradient(900px 400px at 85% 10%,rgba(255,255,255,.025),transparent 60%);
+    color:var(--chalk);font-family:"Public Sans",system-ui,sans-serif;
+    font-size:16px;line-height:1.62;padding:26px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:700px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:30px;flex-wrap:wrap}
+  .mark{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:25px;letter-spacing:-.02em}
+  .mark i{font-style:normal;color:var(--mark)}
+  .net-badge{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--faint);border:1px solid var(--line);padding:4px 10px;border-radius:99px}
+
+  .hero{margin-bottom:24px}
+  .kicker{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 12px}
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:clamp(30px,7vw,44px);
+    line-height:1.06;letter-spacing:-.03em;margin:0 0 10px}
+  h1 i{font-style:normal;color:var(--mark)}
+  .lede{font-size:16.5px;color:var(--dim);margin:0;max-width:54ch}
+
+  /* ---------- SIGNATURE: the balance rail ---------- */
+  .board{background:var(--slate-2);border:1px solid var(--line);border-radius:12px;
+    padding:22px;margin:24px 0 14px}
+  .board-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:5px}
+  .lname{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:25px;letter-spacing:-.02em;margin:0}
+  .lmeta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--faint);line-height:1.7}
+
+  .rail{margin:20px 0 4px}
+  .rail-head{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+    font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+  .row{display:grid;grid-template-columns:88px 1fr 92px;gap:10px;align-items:center;padding:5px 0}
+  .row .who{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row.me .who{color:var(--mark);font-weight:600}
+  .track{position:relative;height:20px}
+  .track::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;
+    background:rgba(240,236,225,.28)}
+  .bar{position:absolute;top:3px;height:14px;border-radius:2px;transition:width .35s cubic-bezier(.4,0,.2,1)}
+  .bar.pos{left:50%;background:var(--owed)}
+  .bar.neg{right:50%;background:var(--owes)}
+  .row .amt{font-family:"IBM Plex Mono",monospace;font-size:12.5px;text-align:right;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .amt.pos{color:var(--owed)} .amt.neg{color:var(--owes)} .amt.zero{color:var(--faint)}
+
+  .rail-note{font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.7;color:var(--faint);
+    margin:14px 0 0;padding-top:12px;border-top:1px dashed var(--line)}
+
+  .tot{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border-radius:8px;overflow:hidden;margin-top:16px}
+  .tot > div{background:var(--slate-2);padding:11px 10px;text-align:center}
+  .tot dt{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 4px}
+  .tot dd{margin:0;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--chalk)}
+
+  .acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+  .acts button{flex:1;min-width:150px;width:auto}
+  .acts:empty{display:none}
+
+  /* panels */
+  .panel{background:var(--slate-2);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:13px}
+  .panel h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:20px;
+    letter-spacing:-.01em;margin:0 0 4px}
+  .how{font-size:13.5px;color:var(--dim);margin:0 0 15px}
+  label{display:block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--faint);margin:0 0 6px}
+  input,select,textarea{width:100%;font-family:"IBM Plex Mono",monospace;font-size:14px;padding:10px 11px;
+    border:1px solid var(--line);border-radius:7px;background:rgba(0,0,0,.22);color:var(--chalk);margin-bottom:10px}
+  input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--mark);outline-offset:1px}
+  input::placeholder,textarea::placeholder{color:rgba(240,236,225,.26)}
+  textarea{min-height:64px;resize:vertical;font-family:"IBM Plex Mono",monospace}
+  button{font-family:"Public Sans",sans-serif;font-size:14.5px;font-weight:600;border:0;border-radius:7px;
+    padding:11px 17px;cursor:pointer;width:100%;background:var(--mark);color:#2a2110;transition:filter .14s}
+  button:hover:not(:disabled){filter:brightness(1.08)}
+  button:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+  button:disabled{background:rgba(240,236,225,.09);color:var(--faint);cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--chalk);box-shadow:inset 0 0 0 1px rgba(240,236,225,.22)}
+  button.ghost:hover:not(:disabled){background:rgba(240,236,225,.05)}
+  button.sm{width:auto;font-size:12px;padding:7px 11px}
+  .why{font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.65;color:var(--dim);margin:10px 0 0}
+  .why.warn{color:var(--owes)}
+  .why.ok{color:var(--owed)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .quote{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:rgba(240,196,116,.09);
+    border-left:2px solid rgba(240,196,116,.55);padding:10px 12px;margin:0 0 11px;color:var(--dim);border-radius:0 6px 6px 0}
+  .quote b{color:var(--chalk)}
+
+  /* split picker */
+  .picker{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;max-height:230px;overflow-y:auto}
+  .pick{display:grid;grid-template-columns:22px 1fr 96px;gap:9px;align-items:center;padding:6px 2px}
+  .pick input[type=checkbox]{width:auto;margin:0}
+  .pick .nm{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pick input[type=text]{margin:0;font-size:12.5px;padding:6px 8px;text-align:right}
+  .pick.off .nm{color:rgba(240,236,225,.25)}
+
+  .list .item{padding:13px 0;border-top:1px solid var(--line);font-family:"IBM Plex Mono",monospace;font-size:12px}
+  .list .item:first-child{border-top:0}
+  .item-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+  .item-top b{color:var(--chalk);font-weight:500;font-size:13px}
+  .item .sub{color:var(--faint);font-size:10.5px;margin-top:4px;line-height:1.7}
+  .item.void{opacity:.42}
+  .item.void b{text-decoration:line-through}
+
+  .foot{font-family:"IBM Plex Mono",monospace;font-size:10.5px;line-height:1.8;color:var(--faint);
+    margin-top:22px;text-align:center}
+  .foot code{color:var(--mark)}
+  a{color:var(--mark)}
+  .hidden{display:none !important}
+  @media (max-width:560px){
+    .two{grid-template-columns:1fr}
+    .row{grid-template-columns:70px 1fr 80px;gap:7px}
+    .tot{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark">Reck<i>oning</i></div>
+    <div class="net-badge" id="net">Arc Testnet</div>
+  </div>
+
+  <header class="hero">
+    <p class="kicker">Testnet dollars only</p>
+    <h1>Who owes what, <i>and then actually paying it</i>.</h1>
+    <p class="lede">Six people on a trip, one buys the groceries, another the gas. The arithmetic is easy — what's hard is that the ledger lives in somebody's memory and settling it means somebody nagging. Here the balance and the payment are the same object.</p>
+  </header>
+
+  <!-- SIGNATURE: the balance rail -->
+  <section class="board" id="board">
+    <div class="board-top">
+      <h2 class="lname" id="lname">No ledger loaded</h2>
+      <span class="lmeta" id="lmeta">Open one below, or load by number.</span>
+    </div>
+
+    <div class="rail" id="rail">
+      <div class="rail-head"><span>Owes</span><span>Square</span><span>Is owed</span></div>
+      <div id="rows"></div>
+    </div>
+    <p class="rail-note" id="railNote"></p>
+
+    <dl class="tot">
+      <div><dt>Logged</dt><dd id="tLogged">—</dd></div>
+      <div><dt>In the pot</dt><dd id="tPot">—</dd></div>
+      <div><dt>Still owed in</dt><dd id="tOwedIn">—</dd></div>
+    </dl>
+
+    <div class="acts" id="acts"></div>
+    <p class="why" id="boardWhy"></p>
+  </section>
+
+  <section class="panel hidden" id="logPanel">
+    <h2>Log what someone paid</h2>
+    <p class="how">Record it after the fact — nobody buys groceries with USDC. Anyone named in the split can reject it before the window closes.</p>
+    <div class="two">
+      <div>
+        <label for="exTotal">Total (USDC)</label>
+        <input id="exTotal" placeholder="214.50" inputmode="decimal" autocomplete="off">
+      </div>
+      <div>
+        <label for="exPayer">Who paid</label>
+        <select id="exPayer"></select>
+      </div>
+    </div>
+    <label for="exNote">What for</label>
+    <input id="exNote" placeholder="groceries" maxlength="60" autocomplete="off">
+
+    <label>Split between — untick anyone who wasn't in on it</label>
+    <div class="picker" id="picker"></div>
+    <div class="two" style="margin-bottom:10px">
+      <button class="ghost sm" id="evenBtn" style="width:100%">Split evenly</button>
+      <button class="ghost sm" id="allBtn" style="width:100%">Everyone in</button>
+    </div>
+    <p class="quote" id="splitQuote">Pick who's in and the shares have to add up to the total.</p>
+    <button id="logBtn" disabled>Log it</button>
+    <p class="why" id="logWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Start a ledger</h2>
+    <p class="how">A trip, a household, a job with a partner. You're automatically in it — you can't run a ledger you're not part of.</p>
+    <label for="nName">What is it</label>
+    <input id="nName" placeholder="Cabin weekend" maxlength="60" autocomplete="off">
+    <label for="nMembers">The others — one address per line</label>
+    <textarea id="nMembers" placeholder="0x…&#10;0x…"></textarea>
+    <label for="nWindow">Time to reject an expense</label>
+    <select id="nWindow">
+      <option value="300">5 minutes (demo)</option>
+      <option value="86400" selected>1 day</option>
+      <option value="259200">3 days</option>
+      <option value="604800">1 week</option>
+    </select>
+    <button id="openBtn">Connect wallet</button>
+    <p class="why" id="openWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>The tab</h2>
+    <div class="list" id="expenses"><p class="why">Load a ledger to see what's on it.</p></div>
+  </section>
+
+  <section class="panel">
+    <h2>Open a different ledger</h2>
+    <input id="lookup" placeholder="1" inputmode="numeric" autocomplete="off">
+    <button class="ghost" id="lookupBtn">Load it</button>
+  </section>
+
+  <p class="foot">
+    Contract <code id="addrOut">—</code><br>
+    <a href="./reckoning-guide.html">What is this?</a> · <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">Read the source</a> · no admin keys · no fee · testnet funds only
+  </p>
+</div>
+
+<script>
+const NETWORKS={
+  testnet:{ label:"Arc Testnet", chainId:5042002,
+    rpcs:["https://rpc.blockdaemon.testnet.arc.network","https://arc-testnet.drpc.org","https://rpc.quicknode.testnet.arc.network","https://5042002.rpc.thirdweb.com","https://rpc.testnet.arc.network","https://rpc.testnet.arc.io"],
+    explorer:"https://testnet.arcscan.app",
+    ledger:"0x935432a9bb750B515890a3dFd35c3b2AE05a08EC",
+    usdc:"0x3600000000000000000000000000000000000000" },
+  mainnet:{ label:"Arc", chainId:0, rpcs:[], explorer:"", ledger:"", usdc:"" }
+};
+const ACTIVE="testnet";
+const NET=NETWORKS[new URLSearchParams(location.search).get("net")]||NETWORKS[ACTIVE];
+const LG=NET.ledger, USDC=NET.usdc, RPCS=NET.rpcs||[], CHAIN=NET.chainId, EXPLORER=NET.explorer;
+const DEC=6n;
+
+const ABI=[
+  "function getLedger(uint256) view returns (tuple(bool exists,address creator,string name,bool closed,uint32 voidWindow,uint256 pot,uint256 memberCount,uint256 expenseCount,uint256 totalLogged,uint256 owedOut,uint256 owedIn))",
+  "function balances(uint256) view returns (tuple(address who,int256 net,uint256 claimable)[])",
+  "function memberList(uint256) view returns (address[])",
+  "function getExpense(uint256,uint256) view returns (tuple(address logger,address payer,uint256 total,uint64 loggedAt,uint64 voidableUntil,bool voided,string note,address[] debtors,uint256[] shares))",
+  "function expenseCount(uint256) view returns (uint256)",
+  "function nextId() view returns (uint256)",
+  "function openLedger(string,address[],uint32) returns (uint256)",
+  "function logExpense(uint256,address,uint256,address[],uint256[],string) returns (uint256)",
+  "function voidExpense(uint256,uint256)",
+  "function settle(uint256,uint256)",
+  "function withdraw(uint256,uint256)",
+  "error ZeroAddress()","error ZeroAmount()","error NoSuchLedger()","error NotMember()",
+  "error AlreadyMember()","error TooManyMembers()","error NoMembers()","error LedgerClosed()",
+  "error NotCreator()","error NoSuchExpense()","error AlreadyVoided()","error VoidWindowClosed()",
+  "error NotInSplit()","error SplitMismatch(uint256 sumOfShares,uint256 total)","error EmptySplit()",
+  "error PayerNotMember()","error NothingOwed()","error NothingAvailable()",
+  "error OverSettling(uint256 sent,uint256 owed)","error HasBalances()","error Reentrant()"
+];
+const USDC_ABI=[
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)"
+];
+const IFACE=new ethers.Interface(ABI);
+const ARC={chainId:"0x"+CHAIN.toString(16),chainName:NET.label,
+  nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18},rpcUrls:RPCS,blockExplorerUrls:[EXPLORER]};
+
+const $=id=>document.getElementById(id);
+const f=v=>Number(ethers.formatUnits(v<0n?-v:v,DEC)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const p6=s=>ethers.parseUnits(s,DEC);
+const shortA=a=>a.slice(0,6)+"…"+a.slice(-4);
+const nowS=()=>Math.floor(Date.now()/1000);
+function cdown(s){
+  if(s<=0) return "closed";
+  const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
+  if(d) return d+"d "+h+"h";
+  if(h) return h+"h "+m+"m";
+  return m+"m "+(s%60)+"s";
+}
+
+const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
+let wp=null;
+const readers=()=>wp?[wp,...pool]:pool;
+async function rd(addr,abi,fn){ let e; for(const p of readers()){ try{ return await fn(new ethers.Contract(addr,abi,p)); }catch(x){e=x;} } throw e; }
+
+let signer=null,me=null,led=null,bals=[],members=[],expenses=[],lid=0,allowance=0n,bal=0n,loadToken=0,tick=null;
+
+$("addrOut").textContent=LG||"not deployed";
+$("net").textContent=NET.label;
+lid=parseInt(new URLSearchParams(location.search).get("l")||"0",10)||0;
+if(lid) $("lookup").value=lid;
+
+/* ---------------- read ---------------- */
+async function load(){
+  if(!lid) return;
+  const token=++loadToken;
+  try{
+    const v=await rd(LG,ABI,c=>c.getLedger(lid));
+    if(token!==loadToken) return;
+    if(!v.exists){
+      led=null;
+      $("lname").textContent="Ledger #"+lid+" doesn't exist";
+      $("lmeta").textContent="Nothing at that number. The first one is #1.";
+      $("rows").innerHTML=""; $("acts").innerHTML=""; $("logPanel").classList.add("hidden");
+      return;
+    }
+    led={creator:v.creator,name:v.name,closed:v.closed,voidWindow:Number(v.voidWindow),
+         pot:v.pot,memberCount:Number(v.memberCount),expenseCount:Number(v.expenseCount),
+         totalLogged:v.totalLogged,owedOut:v.owedOut,owedIn:v.owedIn};
+    bals=await rd(LG,ABI,c=>c.balances(lid));
+    members=await rd(LG,ABI,c=>c.memberList(lid));
+
+    const n=led.expenseCount;
+    expenses=[];
+    for(let i=n-1;i>=0&&expenses.length<25;i--){
+      const e=await rd(LG,ABI,c=>c.getExpense(lid,i));
+      if(token!==loadToken) return;
+      expenses.push({i,...e});
+    }
+    render();
+    if(!tick) tick=setInterval(renderExpenses,1000);
+  }catch(e){
+    if(token!==loadToken) return;
+    console.error(e);
+    $("lmeta").textContent="Couldn't reach the contract — public RPCs throttle under load. Reload in a moment.";
+  }
+}
+
+/* SIGNATURE — one centre line, everyone's bar pointing the way their
+   money does. A six-way tangle should read without arithmetic. */
+function renderRail(){
+  let max=0n;
+  for(const b of bals){ const a=b.net<0n?-b.net:b.net; if(a>max) max=a; }
+  if(max===0n) max=1n;
+
+  $("rows").innerHTML = bals.map(b=>{
+    const isMe = me && b.who.toLowerCase()===me.toLowerCase();
+    const net=b.net;
+    const w = Number((net<0n?-net:net)*100n/max)/2;  // half-width max
+    const bar = net===0n ? ''
+      : '<div class="bar '+(net>0n?'pos':'neg')+'" style="width:'+w.toFixed(2)+'%"></div>';
+    const cls = net>0n?'pos':net<0n?'neg':'zero';
+    const label = net===0n ? 'square' : (net>0n?'+':'−')+f(net);
+    return '<div class="row'+(isMe?' me':'')+'">'+
+      '<span class="who">'+(isMe?'you':shortA(b.who))+'</span>'+
+      '<span class="track">'+bar+'</span>'+
+      '<span class="amt '+cls+'">'+label+'</span></div>';
+  }).join("");
+
+  const anyOwed = bals.some(b=>b.net>0n);
+  $("railNote").textContent = !anyOwed
+    ? "Nobody's owed anything — either nothing's been logged yet, or everyone's square."
+    : "Everyone settles against the ledger, not against each other. Debtors pay in, creditors draw out, and nobody's waiting on one particular person to get round to it.";
+}
+
+function render(){
+  $("lname").textContent=led.name||"Untitled ledger";
+  const bits=[led.memberCount+" people", led.expenseCount+" expense"+(led.expenseCount===1?"":"s")];
+  if(led.closed) bits.push("closed");
+  $("lmeta").textContent=bits.join(" · ");
+
+  $("tLogged").textContent=f(led.totalLogged);
+  $("tPot").textContent=f(led.pot);
+  $("tOwedIn").textContent=f(led.owedIn);
+
+  renderRail();
+  renderExpenses();
+
+  // my position and actions
+  const mine = me ? bals.find(b=>b.who.toLowerCase()===me.toLowerCase()) : null;
+  let a="";
+  if(mine && mine.net<0n) a+='<button id="setBtn">Pay in '+f(mine.net)+' USDC</button>';
+  if(mine && mine.net>0n && mine.claimable>0n) a+='<button id="wdBtn">Take '+f(mine.claimable)+' USDC</button>';
+  $("acts").innerHTML=a;
+  if($("setBtn")) $("setBtn").onclick=doSettle;
+  if($("wdBtn")) $("wdBtn").onclick=doWithdraw;
+
+  $("boardWhy").className="why";
+  if(!me) $("boardWhy").textContent="Connect a wallet to log expenses or settle up.";
+  else if(!mine) $("boardWhy").textContent="You're not on this ledger, so you can read it but not act on it.";
+  else if(mine.net===0n) $("boardWhy").textContent="You're square. Nothing owed either way.";
+  else if(mine.net<0n) $("boardWhy").textContent="You owe "+f(mine.net)+" USDC. Paying in puts it in the pot for whoever's owed.";
+  else if(mine.claimable===0n) $("boardWhy").textContent="You're owed "+f(mine.net)+" USDC, but nobody has paid in yet. It'll be here when they do.";
+  else if(mine.claimable<mine.net) $("boardWhy").textContent="You're owed "+f(mine.net)+" but only "+f(mine.claimable)+" has been paid in so far. Take that now and the rest later.";
+  else $("boardWhy").textContent="Everything you're owed is in the pot and ready to take.";
+
+  // log panel
+  const canLog = me && mine && !led.closed;
+  $("logPanel").classList.toggle("hidden", !canLog);
+  if(canLog) buildPicker();
+}
+
+function renderExpenses(){
+  if(!led) return;
+  if(!expenses.length){ $("expenses").innerHTML='<p class="why">Nothing on the tab yet.</p>'; return; }
+  const t=nowS();
+  $("expenses").innerHTML = expenses.map(e=>{
+    const left=Number(e.voidableUntil)-t;
+    const canVoid = me && !e.voided && left>0 &&
+      (e.payer.toLowerCase()===me.toLowerCase() || e.logger.toLowerCase()===me.toLowerCase()
+        || e.debtors.some(d=>d.toLowerCase()===me.toLowerCase()));
+    const who = e.payer.toLowerCase()===(me||"").toLowerCase() ? "you" : shortA(e.payer);
+    const parts = e.debtors.map((d,i)=>{
+      const nm = d.toLowerCase()===(me||"").toLowerCase()?"you":shortA(d);
+      return nm+" "+f(e.shares[i]);
+    }).join(" · ");
+    return '<div class="item'+(e.voided?' void':'')+'">'+
+      '<div class="item-top"><b>'+esc(e.note||"(no note)")+'</b><span>'+who+' paid '+f(e.total)+'</span></div>'+
+      '<div class="sub">'+parts+'</div>'+
+      '<div class="sub">'+(e.voided ? 'Rejected — unwound in full'
+        : left>0 ? 'Rejectable for '+cdown(left) : 'Locked in')+
+        (canVoid?' <button class="ghost sm" data-void="'+e.i+'" style="margin-left:6px">Reject it</button>':'')+
+      '</div></div>';
+  }).join("");
+  $("expenses").querySelectorAll("[data-void]").forEach(b=>b.onclick=()=>doVoid(Number(b.dataset.void),b));
+}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------------- split picker ---------------- */
+function buildPicker(){
+  if($("picker").dataset.for===String(lid)) return;   // don't wipe entries on reload
+  $("picker").dataset.for=String(lid);
+  $("exPayer").innerHTML=members.map(m=>
+    '<option value="'+m+'">'+(me&&m.toLowerCase()===me.toLowerCase()?"you — ":"")+shortA(m)+'</option>').join("");
+  if(me) $("exPayer").value=members.find(m=>m.toLowerCase()===me.toLowerCase())||members[0];
+
+  $("picker").innerHTML=members.map((m,i)=>
+    '<div class="pick" data-i="'+i+'">'+
+      '<input type="checkbox" checked data-who="'+m+'">'+
+      '<span class="nm">'+(me&&m.toLowerCase()===me.toLowerCase()?"you":shortA(m))+'</span>'+
+      '<input type="text" inputmode="decimal" placeholder="0.00" data-amt="'+m+'">'+
+    '</div>').join("");
+  $("picker").querySelectorAll("input").forEach(el=>{
+    el.addEventListener("input",()=>{ syncPicker(); checkSplit(); });
+    el.addEventListener("change",()=>{ syncPicker(); checkSplit(); });
+  });
+  syncPicker(); checkSplit();
+}
+function syncPicker(){
+  $("picker").querySelectorAll(".pick").forEach(row=>{
+    const on=row.querySelector("input[type=checkbox]").checked;
+    row.classList.toggle("off",!on);
+    row.querySelector("input[type=text]").disabled=!on;
+  });
+}
+function chosen(){
+  return [...$("picker").querySelectorAll(".pick")]
+    .filter(r=>r.querySelector("input[type=checkbox]").checked)
+    .map(r=>({who:r.querySelector("input[type=checkbox]").dataset.who,
+              amt:r.querySelector("input[type=text]").value.trim()}));
+}
+$("allBtn").onclick=()=>{ $("picker").querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=true); syncPicker(); checkSplit(); };
+$("evenBtn").onclick=()=>{
+  const tot=$("exTotal").value.trim();
+  const rows=chosen();
+  if(!tot||isNaN(tot)||!rows.length) return;
+  const total=p6(tot), n=BigInt(rows.length);
+  const each=total/n, rem=total-each*n;
+  // remainder lands on the first person rather than vanishing
+  rows.forEach((r,i)=>{
+    const amt = i===0 ? each+rem : each;
+    $("picker").querySelector('input[data-amt="'+r.who+'"]').value=ethers.formatUnits(amt,DEC);
+  });
+  checkSplit();
+};
+["exTotal"].forEach(id=>$(id).addEventListener("input",checkSplit));
+
+function checkSplit(){
+  const tot=$("exTotal").value.trim();
+  const rows=chosen();
+  if(!tot||isNaN(tot)||Number(tot)<=0){
+    $("splitQuote").textContent="Enter the total, then pick who's in.";
+    $("logBtn").disabled=true; return;
+  }
+  if(!rows.length){
+    $("splitQuote").textContent="Nobody's ticked — pick at least one person.";
+    $("logBtn").disabled=true; return;
+  }
+  let total,sum=0n,blank=0;
+  try{ total=p6(tot); }catch{ return; }
+  for(const r of rows){
+    if(!r.amt||isNaN(r.amt)){ blank++; continue; }
+    try{ sum+=p6(r.amt); }catch{}
+  }
+  if(blank){
+    $("splitQuote").innerHTML=blank+" share"+(blank===1?" is":"s are")+" blank. Hit <b>Split evenly</b>, or type each one.";
+    $("logBtn").disabled=true; return;
+  }
+  if(sum!==total){
+    const diff=sum>total?sum-total:total-sum;
+    $("splitQuote").innerHTML="Shares add up to <b>"+f(sum)+"</b> against a total of <b>"+f(total)+
+      "</b> — "+(sum>total?"over":"short")+" by "+f(diff)+".";
+    $("logBtn").disabled=true; return;
+  }
+  $("splitQuote").innerHTML="Adds up. <b>"+rows.length+"</b> people splitting <b>"+f(total)+" USDC</b>.";
+  $("logBtn").disabled=false;
+}
+
+/* ---------------- connect ---------------- */
+(async function restore(){
+  if(!window.ethereum) return;
+  try{ const a=await window.ethereum.request({method:"eth_accounts"}); if(a&&a.length) await connect(true); }catch(_){}
+})();
+$("openBtn").onclick=()=>signer?doOpen():connect(false);
+$("lookupBtn").onclick=()=>{ const v=parseInt($("lookup").value,10); if(v>0) openLedger(v); };
+function openLedger(id){
+  lid=id; $("lookup").value=id;
+  $("picker").dataset.for="";
+  history.replaceState(null,"",location.pathname+"?l="+id);
+  load(); window.scrollTo({top:0,behavior:"smooth"});
+}
+
+async function connect(silent){
+  if(!window.ethereum){
+    if(!silent){ $("openWhy").textContent="No wallet in this browser."; $("openWhy").className="why warn"; }
+    return;
+  }
+  try{
+    if(!silent) await window.ethereum.request({method:"eth_requestAccounts"});
+    const n=await window.ethereum.request({method:"eth_chainId"});
+    if(parseInt(n,16)!==CHAIN){
+      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC.chainId}]}); }
+      catch(e){ if(e.code===4902) await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC]}); else throw e; }
+    }
+    const bp=new ethers.BrowserProvider(window.ethereum);
+    wp=bp; signer=await bp.getSigner(); me=await signer.getAddress();
+    $("openBtn").textContent="Start it";
+    try{ bal=await rd(USDC,USDC_ABI,c=>c.balanceOf(me));
+         allowance=await rd(USDC,USDC_ABI,c=>c.allowance(me,LG)); }catch(_){}
+    $("picker").dataset.for="";
+    await load();
+  }catch(e){
+    if(!silent){ $("openWhy").textContent="Wallet didn't connect: "+(e.shortMessage||e.message); $("openWhy").className="why warn"; }
+  }
+}
+
+/* ---------------- write ---------------- */
+const ERRS={
+  NoSuchLedger:"No ledger at that number.",
+  NotMember:"You're not on this ledger.",
+  PayerNotMember:"Whoever paid has to be on the ledger.",
+  LedgerClosed:"This ledger is closed.",
+  NotCreator:"Only whoever started it can do that.",
+  AlreadyVoided:"That one's already been rejected.",
+  VoidWindowClosed:"Too late — the window to reject that expense has closed.",
+  NotInSplit:"You weren't named in that expense, so you can't reject it.",
+  SplitMismatch:"The shares don't add up to the total.",
+  EmptySplit:"Pick at least one person to split it between.",
+  NothingOwed:"Nothing owed either way right now.",
+  NothingAvailable:"Nothing's been paid into the pot yet — there's nothing to take.",
+  OverSettling:"That's more than you owe.",
+  HasBalances:"Everyone has to be square before it can be closed.",
+  TooManyMembers:"Twenty-four people is the limit.",
+  NoMembers:"Add at least one other person.",
+  ZeroAmount:"Amount can't be zero.",
+  ZeroAddress:"One of those addresses isn't valid."
+};
+function why(e){
+  const m=e.shortMessage||e.message||"";
+  if(m.includes("rejected")||e?.code==="ACTION_REJECTED") return "You rejected the signature. Nothing happened.";
+  let r=e?.revert;
+  if(!r){ const d=e?.data||e?.info?.error?.data||e?.error?.data;
+    if(typeof d==="string"){ try{ r=IFACE.parseError(d); }catch(_){} } }
+  if(r&&ERRS[r.name]){
+    if(r.name==="SplitMismatch"&&r.args) return "Shares add up to "+f(r.args[0])+" against a total of "+f(r.args[1])+".";
+    if(r.name==="OverSettling"&&r.args) return "You only owe "+f(r.args[1])+" USDC.";
+    return ERRS[r.name];
+  }
+  if(r) return "Reverted: "+r.name;
+  if(m.includes("insufficient funds")) return "Not enough USDC to cover it plus gas.";
+  return "Failed: "+m;
+}
+
+async function ensureAllowance(amount,btn){
+  if(allowance>=amount) return;
+  btn.textContent="Approve…";
+  const u=new ethers.Contract(USDC,USDC_ABI,signer);
+  await (await u.approve(LG,amount)).wait();
+  allowance=amount;
+}
+
+async function doOpen(){
+  const b=$("openBtn"); b.disabled=true;
+  try{
+    const nm=$("nName").value.trim();
+    if(!nm) throw new Error("Name it first");
+    const lines=$("nMembers").value.split("\n").map(s=>s.trim()).filter(Boolean);
+    for(const l of lines) if(!ethers.isAddress(l)) throw new Error("Not a valid address: "+l);
+    if(!lines.length) throw new Error("Add at least one other person");
+    b.textContent="Starting…";
+    const c=new ethers.Contract(LG,ABI,signer);
+    const tx=await c.openLedger(nm,lines,parseInt($("nWindow").value,10));
+    const rc=await tx.wait();
+    let id=0;
+    for(const lg of rc.logs){
+      try{ const p=IFACE.parseLog(lg); if(p&&p.name==="LedgerOpened"){ id=Number(p.args[0]); break; } }catch(_){}
+    }
+    $("nName").value=""; $("nMembers").value="";
+    if(id) openLedger(id);
+    $("openWhy").textContent="Started. Share the link with everyone on it.";
+    $("openWhy").className="why ok";
+  }catch(e){ $("openWhy").textContent=why(e); $("openWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent=signer?"Start it":"Connect wallet"; }
+}
+
+async function doLog(){
+  const b=$("logBtn"); b.disabled=true; b.textContent="Confirm…";
+  try{
+    const total=p6($("exTotal").value.trim());
+    const rows=chosen();
+    const debtors=rows.map(r=>r.who);
+    const shares=rows.map(r=>p6(r.amt));
+    const c=new ethers.Contract(LG,ABI,signer);
+    await (await c.logExpense(lid,$("exPayer").value,total,debtors,shares,$("exNote").value.trim())).wait();
+    $("exTotal").value=""; $("exNote").value="";
+    $("picker").querySelectorAll("input[type=text]").forEach(i=>i.value="");
+    await load();
+    $("logWhy").textContent="On the tab. Anyone in the split can reject it until the window closes.";
+    $("logWhy").className="why ok";
+  }catch(e){ $("logWhy").textContent=why(e); $("logWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent="Log it"; checkSplit(); }
+}
+$("logBtn").onclick=doLog;
+
+async function doVoid(i,btn){
+  btn.disabled=true; btn.textContent="…";
+  try{
+    const c=new ethers.Contract(LG,ABI,signer);
+    await (await c.voidExpense(lid,i)).wait();
+    await load();
+  }catch(e){ $("logWhy").textContent=why(e); $("logWhy").className="why warn";
+    btn.disabled=false; btn.textContent="Reject it"; }
+}
+
+async function doSettle(){
+  const b=$("setBtn"); b.disabled=true;
+  try{
+    const mine=bals.find(x=>x.who.toLowerCase()===me.toLowerCase());
+    const owed=-mine.net;
+    if(owed>bal) throw new Error("You hold "+f(bal)+" USDC");
+    await ensureAllowance(owed,b);
+    b.textContent="Paying…";
+    const c=new ethers.Contract(LG,ABI,signer);
+    await (await c.settle(lid,0)).wait();
+    try{ bal=await rd(USDC,USDC_ABI,x=>x.balanceOf(me)); }catch(_){}
+    await load();
+    $("boardWhy").textContent="Paid in. It's in the pot for whoever's owed.";
+    $("boardWhy").className="why ok";
+  }catch(e){ $("boardWhy").textContent=why(e); $("boardWhy").className="why warn"; b.disabled=false; }
+}
+
+async function doWithdraw(){
+  const b=$("wdBtn"); b.disabled=true; b.textContent="Confirm…";
+  try{
+    const c=new ethers.Contract(LG,ABI,signer);
+    await (await c.withdraw(lid,0)).wait();
+    try{ bal=await rd(USDC,USDC_ABI,x=>x.balanceOf(me)); }catch(_){}
+    await load();
+    $("boardWhy").textContent="Taken. Back in your wallet.";
+    $("boardWhy").className="why ok";
+  }catch(e){ $("boardWhy").textContent=why(e); $("boardWhy").className="why warn"; b.disabled=false; }
+}
+
+load();
+</script>
+</body>
+</html>

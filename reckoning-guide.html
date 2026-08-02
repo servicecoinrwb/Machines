@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Reckoning is</title>
+<meta name="description" content="Shared expense ledgers settled in stablecoins — the balance and the payment as one object.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --slate:#2a3a33; --slate-2:#33463d; --chalk:#f0ece1;
+    --dim:rgba(240,236,225,.66); --faint:rgba(240,236,225,.38);
+    --line:rgba(240,236,225,.14);
+    --owed:#8fd6a8; --owes:#e8a3a3; --mark:#f0c674;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--slate);
+    background-image:radial-gradient(1200px 500px at 20% -5%,rgba(255,255,255,.035),transparent 60%);
+    color:var(--chalk);font-family:"Public Sans",system-ui,sans-serif;
+    font-size:16px;line-height:1.68;padding:26px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:34px;flex-wrap:wrap}
+  .mark{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:25px;letter-spacing:-.02em}
+  .mark i{font-style:normal;color:var(--mark)}
+  .back{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--mark);text-decoration:none;border:1px solid rgba(240,198,116,.4);padding:6px 13px;border-radius:99px}
+  .back:hover{background:rgba(240,198,116,.08)}
+
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:clamp(30px,7vw,44px);
+    line-height:1.07;letter-spacing:-.03em;margin:0 0 16px}
+  h1 i{font-style:normal;color:var(--mark)}
+  .lede{font-size:17px;color:var(--dim);margin:0 0 10px;max-width:57ch}
+
+  h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:24px;
+    letter-spacing:-.02em;margin:46px 0 12px}
+  h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:19px;margin:0 0 6px}
+  p{color:var(--dim);margin:0 0 14px;max-width:62ch}
+  b{color:var(--chalk);font-weight:600}
+
+  /* the rail diagram */
+  .demo{background:var(--slate-2);border:1px solid var(--line);border-radius:12px;padding:20px;margin:22px 0 10px}
+  .demo-lab{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.15em;
+    text-transform:uppercase;color:var(--faint);margin:0 0 14px}
+  .rh{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+    font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:9px}
+  .row{display:grid;grid-template-columns:52px 1fr 84px;gap:10px;align-items:center;padding:4px 0}
+  .row .who{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim)}
+  .track{position:relative;height:18px}
+  .track::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:rgba(240,236,225,.28)}
+  .bar{position:absolute;top:2px;height:14px;border-radius:2px}
+  .bar.pos{left:50%;background:var(--owed)} .bar.neg{right:50%;background:var(--owes)}
+  .amt{font-family:"IBM Plex Mono",monospace;font-size:12px;text-align:right}
+  .amt.pos{color:var(--owed)} .amt.neg{color:var(--owes)}
+  .demo p{font-size:13.5px;margin:16px 0 0}
+
+  .case{background:var(--slate-2);border:1px solid var(--line);border-radius:12px;padding:19px;margin:0 0 12px}
+  .case p{font-size:14.5px;margin:0 0 10px}
+  .case p:last-child{margin:0}
+
+  table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:14.5px}
+  th,td{text-align:left;padding:11px 0;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--faint);font-weight:400}
+  td:first-child{color:var(--chalk);width:38%;padding-right:16px}
+
+  .plain{border-left:2px solid var(--owes);padding:2px 0 2px 16px;margin:20px 0}
+  .plain p{font-size:15px;color:var(--dim)}
+  .plain p:last-child{margin:0}
+
+  .cta{display:inline-block;background:var(--mark);color:#2a2110;font-weight:600;font-size:15px;
+    text-decoration:none;padding:13px 22px;border-radius:8px;margin-top:10px}
+  .cta:hover{filter:brightness(1.08)}
+
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;line-height:1.85;color:var(--faint);text-align:center}
+  footer a{color:var(--mark)}
+  a{color:var(--mark)}
+  @media (max-width:520px){ table,tbody,tr,td,th{display:block} th{display:none}
+    tr{border-bottom:1px solid var(--line);padding:10px 0} td{border:0;padding:2px 0;width:auto}
+    td:first-child{color:var(--chalk);font-weight:600} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark">Reck<i>oning</i></div>
+    <a class="back" href="./reckoning.html">Open the app</a>
+  </div>
+
+  <h1>The spreadsheet was never the problem. <i>The nagging was.</i></h1>
+  <p class="lede">Six people share a cabin for a weekend. One buys the groceries, another covers the gas, a third puts the whole booking on their card. Working out who owes what takes ten minutes and a phone calculator.</p>
+  <p class="lede">Collecting it takes three weeks, four reminders, and usually ends with somebody quietly eating forty dollars because chasing it isn't worth the friendship.</p>
+
+  <h2>One board, everyone on it</h2>
+  <p>Expenses go on the ledger as they happen. The contract keeps a running net position for each person — what they've fronted minus what they owe — and every position always sums to exactly zero, because every expense credits precisely as much as it debits.</p>
+
+  <div class="demo">
+    <p class="demo-lab">After a weekend · 1,390.50 logged</p>
+    <div class="rh"><span>Owes</span><span>Square</span><span>Is owed</span></div>
+    <div class="row"><span class="who">ann</span><span class="track"><span class="bar pos" style="width:50%"></span></span><span class="amt pos">+647.10</span></div>
+    <div class="row"><span class="who">ben</span><span class="track"><span class="bar neg" style="width:0.5%"></span></span><span class="amt neg">−6.40</span></div>
+    <div class="row"><span class="who">cal</span><span class="track"><span class="bar neg" style="width:22%"></span></span><span class="amt neg">−286.90</span></div>
+    <div class="row"><span class="who">dee</span><span class="track"><span class="bar neg" style="width:3.4%"></span></span><span class="amt neg">−43.90</span></div>
+    <div class="row"><span class="who">eli</span><span class="track"><span class="bar neg" style="width:17%"></span></span><span class="amt neg">−223.90</span></div>
+    <div class="row"><span class="who">fay</span><span class="track"><span class="bar neg" style="width:6.6%"></span></span><span class="amt neg">−86.00</span></div>
+    <p>Ann booked the cabin, so she's carrying most of the weekend. Cal had the steak. Ben is basically square. You can read all of that without doing any arithmetic, which is the point.</p>
+  </div>
+
+  <h2>Why nobody pays anybody directly</h2>
+  <p>The obvious design has Cal send Ann 286.90 and Eli send Ann 223.90 — a neat chain of pairwise transfers, and one fewer transaction than the alternative.</p>
+  <p>It's also fragile in a specific way. <b>Every creditor is waiting on one particular person.</b> If Cal is broke until Friday, Ann is short until Friday, and if the chain is longer than two people, one slow payer strands everyone behind them.</p>
+  <p>So settlement goes through the ledger instead. Debtors pay in what they owe; creditors take out what they're owed, whenever there's something to take. Nobody waits on anybody in particular, and a partial pot still gets partially distributed rather than sitting there until the last person comes good.</p>
+
+  <h2>Expenses are claims. Settlement is real.</h2>
+  <div class="case">
+    <p>Nobody buys groceries with USDC, so an expense is recorded after the fact — it's somebody's assertion about something that happened offchain, and no blockchain can check it.</p>
+    <p>The recourse is deliberately social: <b>anyone named in a split can reject it</b> inside a window you set when the ledger starts. No bond, no arbiter, no dispute process. It's your friends, and the answer to "I didn't agree to that" should be saying so, not filing something.</p>
+    <p>Rejecting unwinds the expense exactly — every share reversed, the payer's credit removed, back to where it was to the cent.</p>
+  </div>
+
+  <h2>Uneven splits, exactly</h2>
+  <p>Dinner where one person had the steak isn't a division problem, it's a list. So the contract takes explicit per-person shares that must sum to the total, rather than dividing anything itself.</p>
+  <table>
+    <tr><th>Approach</th><th>What happens</th></tr>
+    <tr><td>Contract divides by N</td><td>100 across three people leaves a cent unaccounted for, forever, on every odd split.</td></tr>
+    <tr><td>Explicit shares (this)</td><td>33.34 / 33.33 / 33.33 — stated, checked against the total, exact. Uneven splits are free.</td></tr>
+  </table>
+  <p>The app's "split evenly" button does the division for you and puts the odd cent on the first person, so the common case is still one click.</p>
+
+  <h2>What it doesn't do</h2>
+  <div class="plain">
+    <p><b>It can't make anyone pay.</b> There's no collateral, no credit check and no enforcement. If someone never settles, the ledger simply records that they never settled — which is more than a group chat does, and less than a court would.</p>
+    <p><b>A creditor can take before others are made whole.</b> Withdrawals are first come, first served against the pot. Pro-rata would be fairer in theory and worse in practice, since it would mean nobody gets anything until everybody has paid.</p>
+    <p><b>Everything is public.</b> Amounts, notes, who split what, forever. Write "groceries," not anything you'd mind a stranger reading in ten years.</p>
+    <p><b>Rejection is a window, not a veto.</b> Once it closes, a wrong expense is locked in and the only fix is logging a correcting one.</p>
+    <p><b>Unaudited.</b> The accounting is verified against a simulation of three thousand randomized ledgers with uneven splits and random rejections, all summing to exactly zero. That isn't a professional review.</p>
+  </div>
+
+  <h2>Try it</h2>
+  <p>Start a ledger with a second wallet, log an expense split between you, and watch both bars appear on either side of the line. Test USDC from <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's faucet</a>.</p>
+  <a class="cta" href="./reckoning.html">Open the app →</a>
+
+  <footer>
+    Reckoning · Arc Testnet, chain 5042002<br>
+    Contract <a href="https://testnet.arcscan.app/address/0x935432a9bb750B515890a3dFd35c3b2AE05a08EC" target="_blank" rel="noopener">0x9354…08EC</a> — no owner, no admin, no fee.
+  </footer>
+</div>
+</body>
+</html>
