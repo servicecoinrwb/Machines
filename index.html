@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Seven small machines on Arc</title>
+<title>Six small machines on Arc</title>
 <meta name="description" content="OpenTill, Tidewater, Blindside, Bellwether and Reckoning — small stablecoin contracts on Arc that each do one thing conventional finance handles badly.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +30,6 @@
     --moss:#7aa870;    /* Bellwether */
     --chalk:#8fd6a8;   /* Reckoning  */
     --seal:#e0705c;    /* Ondersign  */
-    --gas:#e4a3b4;     /* Custody    */
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -133,15 +132,6 @@
   .sealrow span{font-family:"JetBrains Mono",monospace;font-size:10px;color:rgba(236,234,228,.42);
     word-break:break-all;line-height:1.6}
 
-  /* custody: a cylinder */
-  .canrow{display:flex;align-items:flex-end;gap:14px}
-  .mini{width:34px;flex:none}
-  .mini .sh{height:7px;background:#e4a3b4;border-radius:16px 16px 2px 2px}
-  .mini .bd{position:relative;height:44px;background:linear-gradient(90deg,#3a4046,#565d64 35%,#33383d);
-    border-radius:2px 2px 5px 5px;overflow:hidden}
-  .mini .fl{position:absolute;left:0;right:0;bottom:0;height:62%;background:#e4a3b4;opacity:.85}
-  .canrow span{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:rgba(236,234,228,.45);line-height:1.7}
-  .canrow b{color:var(--bone);font-weight:500}
 
   h2{font-family:"Sora",sans-serif;font-weight:600;font-size:22px;margin:44px 0 12px;letter-spacing:-.01em}
   p.body{color:var(--dim);margin:0 0 14px;max-width:62ch}
@@ -165,7 +155,7 @@
     <div class="net" id="net">Arc Testnet · 5042002</div>
   </div>
 
-  <h1>Five machines for moving money.<br>Two for keeping people honest.</h1>
+  <h1>Five machines for moving money.<br>One for keeping people honest.</h1>
   <p class="lede">Each one does something conventional payments handle badly, and each is small enough to read in an afternoon. They share a chain, a stablecoin, and a rule: <b>none of them has an admin key, and none can hold your money longer than the mechanic requires.</b></p>
 
   <div class="strip">
@@ -313,8 +303,8 @@
   </article>
 
   <div class="divider">
-    <h2>Two that move records instead</h2>
-    <p>Same chain, same rules, no money in them at all. Both exist because the paper version of the same job gets lost, argued over, or quietly rewritten.</p>
+    <h2>And one that moves records instead</h2>
+    <p>Same chain, same rules, no money in it at all. It exists because the paper version of the same job gets lost, argued over, or quietly rewritten.</p>
   </div>
 
   <!-- ONDERSIGN -->
@@ -343,32 +333,6 @@
     <p class="m-addr">0x9116707ac3d3821E9F3Be2C4E394e6325f49357e · <a href="https://testnet.arcscan.app/address/0x9116707ac3d3821E9F3Be2C4E394e6325f49357e" target="_blank" rel="noopener">verified source</a></p>
   </article>
 
-  <!-- CUSTODY -->
-  <article class="machine" style="--ac:var(--gas)">
-    <div class="m-body">
-      <div class="m-top">
-        <h2 class="m-name" style="margin:0">Custody</h2>
-        <span class="m-kind">Refrigerant chain of custody</span>
-      </div>
-      <p class="m-line">Every pound, and who had it.</p>
-      <p>A paper cylinder tag falls off; a logbook is one person's handwriting. When a contractor's numbers and a reclaimer's numbers disagree there's no third thing to check — so every handoff here needs both ends to sign. Job addresses stay off the chain as a hash.</p>
-
-      <div class="demo">
-        <p class="demo-lab">A 30 lb recovery cylinder, R-410A</p>
-        <div class="canrow">
-          <div class="mini"><div class="sh"></div><div class="bd"><div class="fl"></div></div></div>
-          <span><b>18.60 lb</b> in the can · recovered 30.45 · charged 2.50 · sent out 20.00 — <b>reconciles</b></span>
-        </div>
-      </div>
-
-      <p class="m-live" id="liveCyl">Reading the chain…</p>
-      <div class="m-acts">
-        <a class="go" href="./custody.html">Open it</a>
-      </div>
-    </div>
-    <p class="m-addr">0xD586320120C691B5BE7606fa187C063A5a8cD6D6 · <a href="https://testnet.arcscan.app/address/0xD586320120C691B5BE7606fa187C063A5a8cD6D6" target="_blank" rel="noopener">verified source</a></p>
-  </article>
-
   <h2>Why these are cheap enough to bother with</h2>
   <p class="body">All three run on Arc, where USDC is the network's own gas token. A payer needs nothing but the dollars they're already sending — no second token, no bridge, no explaining what a wallet is before they can hand you twenty bucks. Settlement is final in under a second and the fee is a fraction of a cent, which is what makes splitting an 850-dollar gig four ways worth doing onchain instead of on a spreadsheet.</p>
 
@@ -381,7 +345,7 @@
 
   <footer>
     Arc Testnet, chain 5042002 · explorer <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">testnet.arcscan.app</a><br>
-    All seven verified onchain — read the source before you trust the page.
+    All six verified onchain — read the source before you trust the page.
   </footer>
 </div>
 
@@ -393,7 +357,6 @@ const AUCTION="0x2509FC4E05BF42c3E7B739f2B19d62fBD2b2f5e2";
 const MARKET="0xb3Ce8d295BB73c71F219130f532b348534615a61";
 const LEDGER="0x935432a9bb750B515890a3dFd35c3b2AE05a08EC";
 const DOCS="0x9116707ac3d3821E9F3Be2C4E394e6325f49357e";
-const CYL="0xD586320120C691B5BE7606fa187C063A5a8cD6D6";
 
 const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
 async function call(addr,abi,fn){
@@ -451,12 +414,6 @@ const f6=v=>Number(ethers.formatUnits(v,6)).toLocaleString("en-US",{minimumFract
     const n=await call(DOCS,["function recordCount() view returns (uint256)"],c=>c.recordCount());
     $("liveDoc").innerHTML="Live: <b>"+n.toString()+"</b> document"+(n===1n?"":"s")+" on the register.";
   }catch(_){ $("liveDoc").textContent="Chain read failed — the public RPCs throttle under load. The app below still works."; }
-
-  try{
-    const n=await call(CYL,["function nextId() view returns (uint256)"],c=>c.nextId());
-    const made=n>0n?n-1n:0n;
-    $("liveCyl").innerHTML="Live: <b>"+made.toString()+"</b> cylinder"+(made===1n?"":"s")+" registered.";
-  }catch(_){ $("liveCyl").textContent="Chain read failed — the public RPCs throttle under load. The app below still works."; }
 })();
 </script>
 </body>
