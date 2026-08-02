@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ondersign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  /* ============================================================
+     A register, kept in ink. Near-black ground, parchment type,
+     one vermilion for the seal — the only saturated thing here,
+     because the seal is the whole point.
+     The signature element is that seal: a mark drawn from the
+     document's own hash, so the same file always makes the same
+     figure and two documents can be compared by eye.
+     ============================================================ */
+  :root{
+    --ink:#131216;
+    --ink-2:#1b1a1f;
+    --ink-3:#242229;
+    --parch:#ece7dc;
+    --dim:rgba(236,231,220,.6);
+    --faint:rgba(236,231,220,.34);
+    --line:rgba(236,231,220,.12);
+    --seal:#c8452f;
+    --ok:#7fb08a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--ink);
+    background-image:radial-gradient(900px 420px at 50% -6%,rgba(200,69,47,.07),transparent 65%);
+    color:var(--parch);font-family:"Public Sans",system-ui,sans-serif;
+    font-size:15.5px;line-height:1.65;padding:26px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:28px;flex-wrap:wrap}
+  .mark{font-family:"Spectral",serif;font-weight:600;font-size:25px;letter-spacing:-.01em}
+  .mark i{font-style:italic;color:var(--seal)}
+  .net{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--faint);border:1px solid var(--line);padding:4px 10px}
+
+  .hero{margin-bottom:22px}
+  .kicker{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 12px}
+  h1{font-family:"Spectral",serif;font-weight:600;font-size:clamp(30px,7vw,43px);line-height:1.1;
+    letter-spacing:-.02em;margin:0 0 10px}
+  h1 i{font-style:italic;color:var(--seal)}
+  .lede{font-size:16.5px;color:var(--dim);margin:0;max-width:55ch}
+
+  /* ---------- SIGNATURE: the seal ---------- */
+  .rec{background:var(--ink-2);border:1px solid var(--line);margin:24px 0 13px}
+  .rec-body{display:grid;grid-template-columns:132px 1fr;gap:22px;padding:24px}
+  .sealbox{text-align:center}
+  .sealbox svg{width:118px;height:118px;display:block;margin:0 auto}
+  .sealcap{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--faint);margin-top:9px}
+
+  .rmain{min-width:0}
+  .rlabel{font-family:"Spectral",serif;font-weight:600;font-size:24px;line-height:1.2;margin:0 0 4px;
+    letter-spacing:-.01em;overflow-wrap:anywhere}
+  .rstate{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 14px}
+  .rstate b{color:var(--ok)}
+  .rstate b.part{color:var(--seal)}
+
+  .hashline{font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.6;
+    background:rgba(0,0,0,.3);border-left:2px solid var(--seal);padding:9px 11px;margin:0 0 14px;
+    word-break:break-all;color:var(--dim)}
+
+  .signers{margin:0}
+  .sg{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:9px 0;border-top:1px solid var(--line);font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+  .sg:first-child{border-top:0}
+  .sg .nm{color:var(--dim)}
+  .sg .nm.you{color:var(--parch)}
+  .sg .st{font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+  .sg .st.yes{color:var(--ok)}
+  .sg .st.no{color:var(--faint)}
+
+  .acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
+  .acts button{flex:1;min-width:150px;width:auto}
+  .acts:empty{display:none}
+
+  .proof{border-top:1px solid var(--line);padding:13px 24px;
+    font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.75;color:var(--faint)}
+
+  /* drop zone */
+  .drop{border:1px dashed rgba(236,231,220,.28);background:rgba(0,0,0,.18);
+    padding:26px 18px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover,.drop.over{border-color:var(--seal);background:rgba(200,69,47,.06)}
+  .drop .big{font-family:"Spectral",serif;font-size:19px;margin:0 0 5px}
+  .drop .sm{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--faint);line-height:1.7;margin:0}
+  .drop.has{border-style:solid;border-color:var(--line)}
+
+  .panel{background:var(--ink-2);border:1px solid var(--line);padding:20px;margin-bottom:13px}
+  .panel h2{font-family:"Spectral",serif;font-weight:600;font-size:21px;margin:0 0 4px;letter-spacing:-.01em}
+  .how{font-size:13.5px;color:var(--dim);margin:0 0 15px}
+  label{display:block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--faint);margin:0 0 6px}
+  input,textarea{width:100%;font-family:"IBM Plex Mono",monospace;font-size:14px;padding:10px 11px;
+    border:1px solid var(--line);background:rgba(0,0,0,.28);color:var(--parch);margin-bottom:10px}
+  input:focus-visible,textarea:focus-visible{outline:2px solid var(--seal);outline-offset:1px}
+  input::placeholder,textarea::placeholder{color:rgba(236,231,220,.25)}
+  textarea{min-height:62px;resize:vertical;font-family:"IBM Plex Mono",monospace}
+  button{font-family:"Public Sans",sans-serif;font-size:14.5px;font-weight:600;border:0;
+    padding:12px 18px;cursor:pointer;width:100%;background:var(--seal);color:#1a0c08;transition:filter .14s}
+  button:hover:not(:disabled){filter:brightness(1.1)}
+  button:focus-visible{outline:2px solid var(--parch);outline-offset:2px}
+  button:disabled{background:rgba(236,231,220,.09);color:var(--faint);cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--parch);box-shadow:inset 0 0 0 1px rgba(236,231,220,.22)}
+  button.ghost:hover:not(:disabled){background:rgba(236,231,220,.05)}
+  .why{font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.65;color:var(--dim);margin:10px 0 0}
+  .why.warn{color:var(--seal)}
+  .why.ok{color:var(--ok)}
+
+  .plain{border-left:2px solid var(--line);padding:2px 0 2px 15px;margin:18px 0 0;
+    font-size:13px;color:var(--faint);line-height:1.75}
+  .plain b{color:var(--dim)}
+
+  .foot{font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.8;color:var(--faint);
+    margin-top:22px;text-align:center}
+  .foot code{color:var(--seal)}
+  a{color:var(--seal)}
+  .hidden{display:none !important}
+  @media (max-width:560px){ .rec-body{grid-template-columns:1fr} .sealbox{margin-bottom:6px} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark">Onder<i>sign</i></div>
+    <div class="net" id="net">Arc Testnet</div>
+  </div>
+
+  <header class="hero">
+    <p class="kicker">A register · testnet</p>
+    <h1>This exact file. <i>These exact people. That date.</i></h1>
+    <p class="lede">Change one byte of a PDF and its fingerprint changes completely. Put the fingerprint on record and "this is the version we agreed to" stops being one person's word against another's.</p>
+  </header>
+
+  <!-- SIGNATURE: the seal -->
+  <section class="rec" id="rec">
+    <div class="rec-body">
+      <div class="sealbox">
+        <svg id="seal" viewBox="0 0 120 120" aria-hidden="true"></svg>
+        <p class="sealcap" id="sealcap">no document</p>
+      </div>
+      <div class="rmain">
+        <h2 class="rlabel" id="rlabel">Drop a file below</h2>
+        <p class="rstate" id="rstate">It's hashed in your browser — the file itself never goes anywhere.</p>
+        <p class="hashline" id="hashline">—</p>
+        <div class="signers" id="signers"></div>
+        <div class="acts" id="acts"></div>
+        <p class="why" id="recWhy"></p>
+      </div>
+    </div>
+    <p class="proof" id="proof">A record proves a file with this fingerprint existed no later than that block, and that these addresses signed it. It cannot prove what the file says, that anyone read it, or that it didn't exist earlier — a timestamp is an upper bound on a document's age, never a lower one.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Take a file's fingerprint</h2>
+    <p class="how">Everything happens on your machine. Nothing is uploaded, and the document never touches the chain.</p>
+    <div class="drop" id="drop">
+      <p class="big" id="dropBig">Drop a file here</p>
+      <p class="sm" id="dropSm">or click to choose · PDF, image, anything at all</p>
+    </div>
+    <input type="file" id="fileIn" class="hidden">
+    <p class="why" id="fileWhy"></p>
+  </section>
+
+  <section class="panel hidden" id="filePanel">
+    <h2>Put it on record</h2>
+    <p class="how">Name who has to sign. Leave it empty for a plain timestamp with no counterparty.</p>
+    <label for="fLabel">What is it</label>
+    <input id="fLabel" placeholder="Change order 3 — 14 Maple St" maxlength="80" autocomplete="off">
+    <label for="fSigners">Who must sign — one address per line, you included if you're one of them</label>
+    <textarea id="fSigners" placeholder="0x…"></textarea>
+    <label for="fUri">Where it lives (optional, public)</label>
+    <input id="fUri" placeholder="leave blank to publish nothing about the file" maxlength="120" autocomplete="off">
+    <button id="fileBtn">Connect wallet</button>
+    <p class="why" id="fileBtnWhy"></p>
+    <p class="plain"><b>Keep the file.</b> The fingerprint isn't the document and can't be turned back into one — lose the file and you lose the ability to prove anything with this record.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Check a document</h2>
+    <p class="how">Drop the file above, or paste a fingerprint someone gave you.</p>
+    <input id="lookup" placeholder="0x… fingerprint" autocomplete="off">
+    <button class="ghost" id="lookupBtn">Look it up</button>
+  </section>
+
+  <p class="foot">
+    Contract <code id="addrOut">—</code> · <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">read the source</a><br>
+    Testnet · unaudited · not a notary public — it proves a wallet signed, never who holds the wallet
+  </p>
+</div>
+
+<script>
+const NETWORKS={
+  testnet:{ label:"Arc Testnet", chainId:5042002,
+    rpcs:["https://rpc.blockdaemon.testnet.arc.network","https://arc-testnet.drpc.org","https://rpc.quicknode.testnet.arc.network","https://5042002.rpc.thirdweb.com","https://rpc.testnet.arc.network","https://rpc.testnet.arc.io"],
+    explorer:"https://testnet.arcscan.app",
+    reg:"0x9116707ac3d3821E9F3Be2C4E394e6325f49357e" },
+  mainnet:{ label:"Arc", chainId:0, rpcs:[], explorer:"", reg:"" }
+};
+const ACTIVE="testnet";
+const NET=NETWORKS[new URLSearchParams(location.search).get("net")]||NETWORKS[ACTIVE];
+const RG=NET.reg, RPCS=NET.rpcs||[], CHAIN=NET.chainId, EXPLORER=NET.explorer;
+
+const ABI=[
+  "function verify(bytes32) view returns (tuple(bool exists,bool voided,address filer,string label,string uri,uint64 filedAt,uint64 completedAt,uint32 signedCount,address[] required,uint64[] signedAt,bool complete))",
+  "function file(bytes32,string,address[],string)",
+  "function sign(bytes32)",
+  "function retract(bytes32)",
+  "function signatureOf(bytes32,address) view returns (uint64)",
+  "function recordCount() view returns (uint256)",
+  "error ZeroHash()","error AlreadyFiled()","error NoSuchRecord()","error NotASigner()",
+  "error AlreadySigned()","error TooManySigners()","error VoidWindowPassed()","error NotFiler()",
+  "error AlreadyVoided()","error SignedAlready()"
+];
+const IFACE=new ethers.Interface(ABI);
+const ARC={chainId:"0x"+CHAIN.toString(16),chainName:NET.label,
+  nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18},rpcUrls:RPCS,blockExplorerUrls:[EXPLORER]};
+
+const $=id=>document.getElementById(id);
+const shortA=a=>a.slice(0,6)+"…"+a.slice(-4);
+const dt=t=>new Date(Number(t)*1000).toLocaleString([], {year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+
+const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
+let wp=null;
+const readers=()=>wp?[wp,...pool]:pool;
+async function rd(fn){ let e; for(const p of readers()){ try{ return await fn(new ethers.Contract(RG,ABI,p)); }catch(x){e=x;} } throw e; }
+
+let signer=null,me=null,hash=null,fileName="",rec=null;
+
+$("addrOut").textContent=RG||"not deployed";
+$("net").textContent=NET.label;
+
+/* ---------------- the seal ----------------
+   Drawn from the hash itself, so the same file always makes the same
+   figure. Two documents can be compared at a glance instead of by
+   reading sixty-four hex characters. */
+function drawSeal(h){
+  const svg=$("seal");
+  if(!h){ svg.innerHTML=
+    '<circle cx="60" cy="60" r="52" fill="none" stroke="rgba(236,231,220,.14)" stroke-width="1"/>'+
+    '<circle cx="60" cy="60" r="40" fill="none" stroke="rgba(236,231,220,.09)" stroke-width="1"/>';
+    return; }
+  const b=[]; for(let i=2;i<h.length;i+=2) b.push(parseInt(h.slice(i,i+2),16));
+  let s='';
+  // outer ring, notched by the first bytes
+  s+='<circle cx="60" cy="60" r="54" fill="none" stroke="var(--seal)" stroke-width="1.4" opacity=".85"/>';
+  s+='<circle cx="60" cy="60" r="49" fill="none" stroke="var(--seal)" stroke-width=".7" opacity=".5"/>';
+  // 32 rays whose length comes from the hash bytes
+  for(let i=0;i<32;i++){
+    const a=(i/32)*Math.PI*2 - Math.PI/2;
+    const len=14+(b[i]/255)*24;
+    const x1=60+Math.cos(a)*20, y1=60+Math.sin(a)*20;
+    const x2=60+Math.cos(a)*(20+len), y2=60+Math.sin(a)*(20+len);
+    const w=(b[(i+7)%32]/255)*2.1+.5;
+    s+='<line x1="'+x1.toFixed(2)+'" y1="'+y1.toFixed(2)+'" x2="'+x2.toFixed(2)+'" y2="'+y2.toFixed(2)+
+       '" stroke="var(--seal)" stroke-width="'+w.toFixed(2)+'" opacity="'+(.35+(b[i]/255)*.5).toFixed(2)+'" stroke-linecap="round"/>';
+  }
+  // inner rosette
+  s+='<circle cx="60" cy="60" r="19" fill="none" stroke="var(--seal)" stroke-width="1.1" opacity=".8"/>';
+  for(let i=0;i<8;i++){
+    const a=(i/8)*Math.PI*2;
+    const r=6+(b[(i*3)%32]/255)*8;
+    s+='<circle cx="'+(60+Math.cos(a)*9).toFixed(2)+'" cy="'+(60+Math.sin(a)*9).toFixed(2)+
+       '" r="'+r.toFixed(2)+'" fill="none" stroke="var(--seal)" stroke-width=".6" opacity=".45"/>';
+  }
+  svg.innerHTML=s;
+}
+drawSeal(null);
+
+/* ---------------- file hashing, locally ---------------- */
+$("drop").onclick=()=>$("fileIn").click();
+$("fileIn").onchange=e=>{ if(e.target.files[0]) takeFile(e.target.files[0]); };
+["dragenter","dragover"].forEach(ev=>$("drop").addEventListener(ev,e=>{
+  e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave","drop"].forEach(ev=>$("drop").addEventListener(ev,e=>{
+  e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop",e=>{
+  e.preventDefault();
+  if(e.dataTransfer.files[0]) takeFile(e.dataTransfer.files[0]);
+});
+
+async function takeFile(f){
+  fileName=f.name;
+  $("fileWhy").textContent="Reading "+f.name+"…";
+  try{
+    const buf=new Uint8Array(await f.arrayBuffer());
+    hash=ethers.keccak256(buf);
+    $("drop").classList.add("has");
+    $("dropBig").textContent=f.name;
+    $("dropSm").textContent=(f.size/1024).toFixed(1)+" KB · fingerprint taken · the file stayed on this machine";
+    $("fileWhy").textContent="";
+    if(!$("fLabel").value.trim()) $("fLabel").value=f.name.replace(/\.[^.]+$/,"");
+    await lookup(hash);
+  }catch(e){
+    $("fileWhy").textContent="Couldn't read that file: "+e.message;
+    $("fileWhy").className="why warn";
+  }
+}
+
+/* ---------------- lookup + render ---------------- */
+$("lookupBtn").onclick=()=>{
+  const v=$("lookup").value.trim();
+  if(!/^0x[0-9a-fA-F]{64}$/.test(v)){
+    $("fileWhy").textContent="That doesn't look like a fingerprint — it should be 0x followed by 64 hex characters.";
+    $("fileWhy").className="why warn"; return;
+  }
+  hash=v.toLowerCase(); fileName="";
+  lookup(hash);
+};
+
+async function lookup(h){
+  hash=h;
+  drawSeal(h);
+  $("sealcap").textContent="fingerprint";
+  $("hashline").textContent=h;
+  try{
+    const v=await rd(c=>c.verify(h));
+    rec = v.exists ? {
+      voided:v.voided, filer:v.filer, label:v.label, uri:v.uri,
+      filedAt:Number(v.filedAt), completedAt:Number(v.completedAt),
+      signedCount:Number(v.signedCount), required:v.required,
+      signedAt:v.signedAt.map(Number), complete:v.complete
+    } : null;
+    render();
+  }catch(e){ console.error(e); rec=null; render(); }
+}
+
+function render(){
+  $("filePanel").classList.toggle("hidden", !hash || !!rec);
+
+  if(!rec){
+    $("rlabel").textContent = fileName || "Not on record";
+    $("rstate").textContent = hash
+      ? "No record for this fingerprint yet — nobody has filed this exact file."
+      : "It's hashed in your browser — the file itself never goes anywhere.";
+    $("signers").innerHTML=""; $("acts").innerHTML="";
+    $("recWhy").textContent = hash && !signer ? "Connect a wallet to put it on record." : "";
+    $("recWhy").className="why";
+    return;
+  }
+
+  $("rlabel").textContent = rec.label || "(no label)";
+  const n=rec.required.length;
+
+  if(rec.voided) $("rstate").innerHTML='<b class="part">Retracted</b> · filed '+dt(rec.filedAt)+' by '+who(rec.filer);
+  else if(n===0) $("rstate").innerHTML='Timestamped '+dt(rec.filedAt)+' by '+who(rec.filer)+' · no signatures required';
+  else if(rec.complete) $("rstate").innerHTML='<b>Fully signed</b> · all '+n+' signed by '+dt(rec.completedAt);
+  else $("rstate").innerHTML='<b class="part">'+rec.signedCount+' of '+n+' signed</b> · filed '+dt(rec.filedAt)+' by '+who(rec.filer);
+
+  $("signers").innerHTML = rec.required.map((a,i)=>{
+    const at=rec.signedAt[i];
+    const isMe = me && a.toLowerCase()===me.toLowerCase();
+    return '<div class="sg"><span class="nm'+(isMe?' you':'')+'">'+(isMe?"you":shortA(a))+'</span>'+
+      (at>0 ? '<span class="st yes">signed '+dt(at)+'</span>' : '<span class="st no">not yet</span>')+'</div>';
+  }).join("");
+
+  // actions
+  let a="";
+  const mySlot = me ? rec.required.findIndex(x=>x.toLowerCase()===me.toLowerCase()) : -1;
+  const canSign = mySlot>=0 && rec.signedAt[mySlot]===0 && !rec.voided;
+  const canRetract = me && rec.filer.toLowerCase()===me.toLowerCase() && !rec.voided
+    && (Date.now()/1000) < rec.filedAt+3600
+    && rec.required.every((x,i)=>x.toLowerCase()===rec.filer.toLowerCase()||rec.signedAt[i]===0);
+  if(canSign) a+='<button id="signBtn">Sign it</button>';
+  if(canRetract) a+='<button id="retBtn" class="ghost">Retract</button>';
+  $("acts").innerHTML=a;
+  if($("signBtn")) $("signBtn").onclick=doSign;
+  if($("retBtn")) $("retBtn").onclick=doRetract;
+
+  $("recWhy").className="why";
+  if(!me) $("recWhy").textContent="Connect a wallet to sign.";
+  else if(rec.voided) $("recWhy").textContent="Retracted by the filer within the first hour. The retraction is itself permanent.";
+  else if(canSign) $("recWhy").textContent="You're named on this. Signing records that you saw this exact file at this moment.";
+  else if(mySlot>=0) $("recWhy").textContent="You signed this on "+dt(rec.signedAt[mySlot])+".";
+  else if(n>0) $("recWhy").textContent="You're not named on this one, so you can read it but not sign it.";
+  else $("recWhy").textContent="";
+
+  if(rec.uri) $("proof").textContent="Filed with a pointer: "+rec.uri;
+}
+const who=a=>me&&a.toLowerCase()===me.toLowerCase()?"you":shortA(a);
+
+/* ---------------- connect ---------------- */
+(async function restore(){
+  if(!window.ethereum) return;
+  try{ const a=await window.ethereum.request({method:"eth_accounts"}); if(a&&a.length) await connect(true); }catch(_){}
+})();
+$("fileBtn").onclick=()=>signer?doFile():connect(false);
+
+async function connect(silent){
+  if(!window.ethereum){
+    if(!silent){ $("fileBtnWhy").textContent="No wallet in this browser."; $("fileBtnWhy").className="why warn"; }
+    return;
+  }
+  try{
+    if(!silent) await window.ethereum.request({method:"eth_requestAccounts"});
+    const n=await window.ethereum.request({method:"eth_chainId"});
+    if(parseInt(n,16)!==CHAIN){
+      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC.chainId}]}); }
+      catch(e){ if(e.code===4902) await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC]}); else throw e; }
+    }
+    const bp=new ethers.BrowserProvider(window.ethereum);
+    wp=bp; signer=await bp.getSigner(); me=await signer.getAddress();
+    $("fileBtn").textContent="File it";
+    if(hash) await lookup(hash); else render();
+  }catch(e){
+    if(!silent){ $("fileBtnWhy").textContent="Wallet didn't connect: "+(e.shortMessage||e.message); $("fileBtnWhy").className="why warn"; }
+  }
+}
+
+/* ---------------- write ---------------- */
+const ERRS={
+  ZeroHash:"That fingerprint is empty.",
+  AlreadyFiled:"This exact file is already on record.",
+  NoSuchRecord:"Nothing on record for that fingerprint.",
+  NotASigner:"You're not named as a signer on this one.",
+  AlreadySigned:"You've already signed it.",
+  TooManySigners:"Ten signers is the limit.",
+  VoidWindowPassed:"The hour to retract has passed. A record you can unmake later isn't a record.",
+  NotFiler:"Only whoever filed it can retract it.",
+  AlreadyVoided:"This one was already retracted.",
+  SignedAlready:"Someone else has already signed it, so it can't be retracted."
+};
+function why(e){
+  const m=e.shortMessage||e.message||"";
+  if(m.includes("rejected")||e?.code==="ACTION_REJECTED") return "You rejected the signature. Nothing was recorded.";
+  let r=e?.revert;
+  if(!r){ const d=e?.data||e?.info?.error?.data||e?.error?.data;
+    if(typeof d==="string"){ try{ r=IFACE.parseError(d); }catch(_){} } }
+  if(r&&ERRS[r.name]) return ERRS[r.name];
+  if(r) return "Reverted: "+r.name;
+  return "Failed: "+m;
+}
+
+async function doFile(){
+  const b=$("fileBtn"); b.disabled=true;
+  try{
+    if(!hash) throw new Error("Take a file's fingerprint first");
+    const lines=$("fSigners").value.split("\n").map(s=>s.trim()).filter(Boolean);
+    for(const l of lines) if(!ethers.isAddress(l)) throw new Error("Not a valid address: "+l);
+    b.textContent="Filing…";
+    const c=new ethers.Contract(RG,ABI,signer);
+    await (await c.file(hash,$("fLabel").value.trim()||fileName,lines,$("fUri").value.trim())).wait();
+    await lookup(hash);
+    $("fileBtnWhy").textContent="On record. Anyone with the file can now verify it against this."; 
+    $("fileBtnWhy").className="why ok";
+  }catch(e){ $("fileBtnWhy").textContent=why(e); $("fileBtnWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent=signer?"File it":"Connect wallet"; }
+}
+
+async function doSign(){
+  const b=$("signBtn"); b.disabled=true; b.textContent="Confirm…";
+  try{
+    const c=new ethers.Contract(RG,ABI,signer);
+    await (await c.sign(hash)).wait();
+    await lookup(hash);
+    $("recWhy").textContent="Signed. That's now permanent."; $("recWhy").className="why ok";
+  }catch(e){ $("recWhy").textContent=why(e); $("recWhy").className="why warn"; b.disabled=false; b.textContent="Sign it"; }
+}
+
+let armRet=false;
+async function doRetract(){
+  const b=$("retBtn");
+  if(!armRet){
+    armRet=true; b.textContent="Confirm — retract it?";
+    $("recWhy").textContent="Retracting voids this record. It can only be done within an hour of filing and only while nobody else has signed. The retraction itself stays on chain forever.";
+    $("recWhy").className="why warn";
+    setTimeout(()=>{ if(armRet){ armRet=false; if($("retBtn")) $("retBtn").textContent="Retract"; } },6000);
+    return;
+  }
+  armRet=false; b.disabled=true; b.textContent="Confirm…";
+  try{
+    const c=new ethers.Contract(RG,ABI,signer);
+    await (await c.retract(hash)).wait();
+    await lookup(hash);
+  }catch(e){ $("recWhy").textContent=why(e); $("recWhy").className="why warn"; b.disabled=false; b.textContent="Retract"; }
+}
+
+render();
+</script>
+</body>
+</html>
