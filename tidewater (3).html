@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tidewater</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  /* ============================================================
+     A stream is time made visible. The interface's only real job
+     is to show the number moving — everything else is support.
+     Ground is deep tidal green; the live figure is the one warm
+     bright thing on the page.
+     ============================================================ */
+  :root{
+    --deep:#0e211d;
+    --deep-2:#152f29;
+    --deep-3:#1c3a33;
+    --sand:#f1ede2;
+    --aqua:#5ad6bd;
+    --amber:#e8a33d;
+    --rust:#e0664a;
+    --line:rgba(241,237,226,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--deep);color:var(--sand);
+    font-family:"Public Sans",system-ui,sans-serif;font-size:16px;line-height:1.6;
+    padding:26px 16px 74px;display:flex;justify-content:center;
+  }
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:28px;flex-wrap:wrap}
+  .mark{font-family:"Instrument Serif",serif;font-size:27px;letter-spacing:-.01em}
+  .mark i{font-style:italic;color:var(--aqua)}
+  .net{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--aqua);border:1px solid rgba(90,214,189,.35);padding:4px 9px;border-radius:99px}
+
+  .hero{margin-bottom:26px}
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:rgba(241,237,226,.4);margin:0 0 12px}
+  h1{font-family:"Instrument Serif",serif;font-size:clamp(34px,8vw,52px);line-height:1.05;
+    letter-spacing:-.01em;margin:0 0 10px;font-weight:400}
+  h1 i{font-style:italic;color:var(--aqua)}
+  .lede{font-size:16.5px;color:rgba(241,237,226,.66);margin:0;max-width:54ch}
+
+  /* ---------- SIGNATURE: the live counter ---------- */
+  .gauge{background:var(--deep-2);border:1px solid var(--line);border-radius:16px;
+    padding:24px;margin:24px 0 14px}
+  .gauge-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .gauge-lab{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:rgba(241,237,226,.4);margin:0}
+  .memo{font-family:"Instrument Serif",serif;font-style:italic;font-size:17px;color:rgba(241,237,226,.6)}
+
+  .live{font-family:"JetBrains Mono",monospace;font-weight:700;
+    font-size:clamp(34px,10vw,60px);line-height:1;letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;color:var(--aqua);margin:6px 0 2px;
+    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .live .frac{font-size:.5em;color:rgba(90,214,189,.55);font-weight:500}
+  .live .unit{font-family:"Public Sans",sans-serif;font-size:15px;font-weight:500;
+    color:rgba(241,237,226,.4);letter-spacing:0}
+  .live.stopped{color:rgba(241,237,226,.5)}
+  .live.stopped .frac{color:rgba(241,237,226,.28)}
+  .rate{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:rgba(241,237,226,.45);margin:0 0 18px}
+
+  .tide{height:12px;border-radius:99px;background:var(--deep-3);overflow:hidden;display:flex}
+  .tide-paid{background:rgba(90,214,189,.35)}
+  .tide-avail{background:var(--aqua)}
+  .tide-left{background:transparent}
+  .tide-key{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:9px;
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;color:rgba(241,237,226,.5)}
+  .tide-key b{color:var(--sand);font-weight:500}
+
+  .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border-radius:10px;overflow:hidden;margin-top:18px}
+  .meta div{background:var(--deep-2);padding:12px 10px;text-align:center}
+  .meta dt{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+    color:rgba(241,237,226,.38);margin:0 0 4px}
+  .meta dd{margin:0;font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--sand)}
+  .gauge-acts{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
+  .gauge-acts button{flex:1;min-width:140px;width:auto}
+
+  .panel{background:var(--deep-2);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:13px}
+  .panel h2{font-family:"Instrument Serif",serif;font-size:22px;font-weight:400;margin:0 0 4px}
+  .how{font-size:13.5px;color:rgba(241,237,226,.55);margin:0 0 15px}
+  label{display:block;font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.13em;
+    text-transform:uppercase;color:rgba(241,237,226,.4);margin:0 0 6px}
+  input,select{width:100%;font-family:"JetBrains Mono",monospace;font-size:14px;padding:11px 12px;
+    border:1px solid rgba(241,237,226,.15);border-radius:8px;background:rgba(0,0,0,.25);
+    color:var(--sand);margin-bottom:11px}
+  input:focus-visible,select:focus-visible{outline:2px solid var(--aqua);outline-offset:1px;border-color:transparent}
+  input::placeholder{color:rgba(241,237,226,.26)}
+  button{font-family:"Public Sans",sans-serif;font-size:14.5px;font-weight:600;border:0;border-radius:8px;
+    padding:12px 18px;cursor:pointer;width:100%;background:var(--aqua);color:#06201b;transition:filter .14s}
+  button:hover:not(:disabled){filter:brightness(1.08)}
+  button:focus-visible{outline:2px solid var(--sand);outline-offset:2px}
+  button:disabled{background:rgba(241,237,226,.08);color:rgba(241,237,226,.3);cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--sand);box-shadow:inset 0 0 0 1px rgba(241,237,226,.22)}
+  button.ghost:hover:not(:disabled){background:rgba(241,237,226,.05)}
+  button.warn{background:transparent;color:var(--rust);box-shadow:inset 0 0 0 1px rgba(224,102,74,.5)}
+  button.warn:hover:not(:disabled){background:rgba(224,102,74,.08)}
+  .why{font-family:"JetBrains Mono",monospace;font-size:11px;line-height:1.6;color:rgba(241,237,226,.48);margin:10px 0 0}
+  .why.warn{color:var(--rust)}
+  .why.ok{color:var(--aqua)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .check{display:flex;align-items:flex-start;gap:9px;margin:2px 0 13px;font-size:13.5px;color:rgba(241,237,226,.62)}
+  .check input{width:auto;margin:3px 0 0}
+
+  .list{margin-top:6px}
+  .item{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:12px 0;border-top:1px solid var(--line);font-family:"JetBrains Mono",monospace;font-size:12px;
+    cursor:pointer}
+  .item:hover{color:var(--aqua)}
+  .item b{color:var(--sand);font-weight:500}
+  .item .tag{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:99px}
+  .tag.run{background:rgba(90,214,189,.18);color:var(--aqua)}
+  .tag.done{background:rgba(241,237,226,.08);color:rgba(241,237,226,.42)}
+  .tag.stop{background:rgba(224,102,74,.15);color:var(--rust)}
+  .tag.soon{background:rgba(232,163,61,.16);color:var(--amber)}
+
+  .foot{font-family:"JetBrains Mono",monospace;font-size:10.5px;line-height:1.75;
+    color:rgba(241,237,226,.3);margin-top:22px;text-align:center}
+  .foot code{color:var(--aqua)}
+  a{color:var(--aqua)}
+  .hidden{display:none !important}
+  @media (prefers-reduced-motion:reduce){.live{transition:none}}
+  @media (max-width:540px){ .two{grid-template-columns:1fr} .meta{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark">Tide<i>water</i></div>
+    <div class="net" id="net">Arc Testnet</div>
+  </div>
+
+  <header class="hero">
+    <p class="kicker">Testnet dollars only</p>
+    <h1>Money that moves <i>by the second</i>.</h1>
+    <p class="lede">Fund it once and it flows continuously — rent accruing hourly, a retainer draining as the month passes. Stop it any time and both sides take exactly what the clock already gave them.</p>
+  </header>
+
+  <!-- SIGNATURE -->
+  <section class="gauge" id="gauge">
+    <div class="gauge-top">
+      <p class="gauge-lab" id="gaugeLab">No stream loaded</p>
+      <span class="memo" id="memoOut"></span>
+    </div>
+    <div class="live" id="liveOut">—<span class="unit">USDC</span></div>
+    <p class="rate" id="rateOut">Open a stream below, or load one by number.</p>
+
+    <div class="tide">
+      <div class="tide-paid" id="tPaid" style="width:0%"></div>
+      <div class="tide-avail" id="tAvail" style="width:0%"></div>
+      <div class="tide-left" id="tLeft" style="width:100%"></div>
+    </div>
+    <div class="tide-key">
+      <span>Withdrawn <b id="kPaid">—</b></span>
+      <span>Ready <b id="kAvail">—</b></span>
+      <span>Still to come <b id="kLeft">—</b></span>
+    </div>
+
+    <dl class="meta">
+      <div><dt>Started</dt><dd id="mStart">—</dd></div>
+      <div><dt>Ends</dt><dd id="mStop">—</dd></div>
+      <div><dt>Deposit</dt><dd id="mDep">—</dd></div>
+    </dl>
+
+    <div class="gauge-acts" id="gaugeActs"></div>
+    <p class="why" id="gaugeWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Open a stream</h2>
+    <p class="how">The full amount moves into the contract now, so the recipient can see it's real. It unlocks to them second by second.</p>
+    <label for="nRecip">To</label>
+    <input id="nRecip" placeholder="0x…" autocomplete="off">
+    <div class="two">
+      <div>
+        <label for="nAmt">Amount (USDC)</label>
+        <input id="nAmt" placeholder="10.00" inputmode="decimal" autocomplete="off">
+      </div>
+      <div>
+        <label for="nDur">Over</label>
+        <select id="nDur">
+          <option value="300">5 minutes (demo)</option>
+          <option value="3600">1 hour</option>
+          <option value="86400">1 day</option>
+          <option value="604800">1 week</option>
+          <option value="2592000" selected>30 days</option>
+          <option value="31536000">1 year</option>
+        </select>
+      </div>
+    </div>
+    <label for="nMemo">Memo — public, optional</label>
+    <input id="nMemo" placeholder="March retainer" maxlength="60" autocomplete="off">
+    <div class="check">
+      <input type="checkbox" id="nCancel" checked>
+      <label for="nCancel" style="text-transform:none;letter-spacing:0;font-family:'Public Sans',sans-serif;font-size:13.5px;color:rgba(241,237,226,.62);margin:0">
+        Either side can stop it early. Uncheck to make it unstoppable — the recipient is then guaranteed the whole amount, and you can't get it back.
+      </label>
+    </div>
+    <button id="openBtn">Connect wallet</button>
+    <p class="why" id="openWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Your streams</h2>
+    <p class="how">Everything you're sending or receiving on this contract.</p>
+    <div class="list" id="mine"><p class="why" id="mineWhy">Connect a wallet to see them.</p></div>
+  </section>
+
+  <section class="panel">
+    <h2>Open by number</h2>
+    <input id="lookup" placeholder="1" inputmode="numeric" autocomplete="off">
+    <button class="ghost" id="lookupBtn">Load stream</button>
+  </section>
+
+  <p class="foot">
+    Contract <code id="addrOut">—</code><br>
+    <a href="./tidewater-guide.html">What is this?</a> · <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">Read the source</a> · unaudited · testnet funds only
+  </p>
+</div>
+
+<script>
+const NETWORKS={
+  testnet:{ label:"Arc Testnet", chainId:5042002,
+    rpcs:["https://rpc.blockdaemon.testnet.arc.network","https://arc-testnet.drpc.org","https://rpc.quicknode.testnet.arc.network","https://5042002.rpc.thirdweb.com","https://rpc.testnet.arc.network","https://rpc.testnet.arc.io"],
+    explorer:"https://testnet.arcscan.app",
+    stream:"0xc85B727f88C3D8daE88d404411C16d1D8f7a5015",
+    usdc:"0x3600000000000000000000000000000000000000" },
+  mainnet:{ label:"Arc", chainId:0, rpcs:[], explorer:"", stream:"", usdc:"" }
+};
+const ACTIVE="testnet";
+const NET=NETWORKS[new URLSearchParams(location.search).get("net")]||NETWORKS[ACTIVE];
+const SC=NET.stream, USDC=NET.usdc, RPCS=NET.rpcs||[], CHAIN=NET.chainId, EXPLORER=NET.explorer;
+const DEC=6n;
+
+const ABI=[
+  "function getStream(uint256) view returns (bool exists,address sender,address recipient,uint256 deposit,uint256 withdrawn,uint256 streamed,uint256 available,uint64 startTime,uint64 stopTime,uint64 cancelledAt,bool cancellable,string memo)",
+  "function open(address,uint256,uint64,uint64,bool,string) returns (uint256)",
+  "function withdrawAll(uint256)",
+  "function cancel(uint256)",
+  "function outgoingOf(address) view returns (uint256[])",
+  "function incomingOf(address) view returns (uint256[])",
+  "function nextId() view returns (uint256)",
+  "error ZeroAddress()","error ZeroAmount()","error SelfStream()","error BadWindow()",
+  "error DurationTooShort()","error DepositTooSmall(uint256 deposit,uint256 minimum)",
+  "error NoSuchStream()","error NotSender()","error NotParty()","error AlreadyCancelled()",
+  "error NotCancellable()","error NothingToWithdraw()",
+  "error MoreThanAvailable(uint256 asked,uint256 available)","error Reentrant()"
+];
+const USDC_ABI=[
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)"
+];
+const IFACE=new ethers.Interface(ABI);
+const ARC={chainId:"0x"+CHAIN.toString(16),chainName:NET.label,
+  nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18},rpcUrls:RPCS,blockExplorerUrls:[EXPLORER]};
+
+const $=id=>document.getElementById(id);
+const f=v=>Number(ethers.formatUnits(v,DEC)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const p6=s=>ethers.parseUnits(s,DEC);
+const shortA=a=>a.slice(0,6)+"…"+a.slice(-4);
+const nowS=()=>Math.floor(Date.now()/1000);
+
+const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
+let wp=null;
+const readers=()=>wp?[wp,...pool]:pool;
+async function rd(addr,abi,fn){ let e; for(const p of readers()){ try{ return await fn(new ethers.Contract(addr,abi,p)); }catch(x){e=x;} } throw e; }
+
+let signer=null,me=null,st=null,streamId=0,allowance=0n,bal=0n,raf=null,loadToken=0;
+
+$("addrOut").textContent=SC||"not deployed";
+$("net").textContent=NET.label;
+streamId=parseInt(new URLSearchParams(location.search).get("id")||"0",10)||0;
+if(streamId) $("lookup").value=streamId;
+
+/* ---------------- the ticking figure ----------------
+   The contract computes streamed from elapsed time, so the browser can
+   compute the same figure between blocks without lying. Recomputed each
+   animation frame from the stream's own start/stop, never extrapolated
+   from a previous reading — so it can drift toward the truth, not away. */
+function streamedNow(s, atMs){
+  const at = s.cancelledAt ? s.cancelledAt : atMs/1000;
+  if(at<=s.startTime) return 0;
+  if(at>=s.stopTime) return Number(s.deposit);
+  return Number(s.deposit)*(at-s.startTime)/(s.stopTime-s.startTime);
+}
+
+function tick(){
+  if(!st){ raf=null; return; }
+  const val = streamedNow(st, Date.now());
+  const whole = Math.floor(val/1e6);
+  const frac = String(Math.floor(val%1e6)).padStart(6,"0");
+  const stopped = st.cancelledAt>0 || nowS()>=st.stopTime;
+  $("liveOut").className = "live"+(stopped?" stopped":"");
+  $("liveOut").innerHTML = whole.toLocaleString("en-US")+
+    '<span class="frac">.'+frac+'</span><span class="unit">USDC streamed</span>';
+
+  const dep=Number(st.deposit)||1;
+  const paidPct=Math.min(100,Number(st.withdrawn)/dep*100);
+  const availPct=Math.max(0,Math.min(100-paidPct, val/dep*100 - paidPct));
+  $("tPaid").style.width=paidPct+"%";
+  $("tAvail").style.width=availPct+"%";
+  $("tLeft").style.width=Math.max(0,100-paidPct-availPct)+"%";
+  $("kPaid").textContent=f(BigInt(Math.floor(Number(st.withdrawn))));
+  $("kAvail").textContent=f(BigInt(Math.max(0,Math.floor(val-Number(st.withdrawn)))));
+  $("kLeft").textContent=f(BigInt(Math.max(0,Math.floor(dep-val))));
+
+  raf=requestAnimationFrame(tick);
+}
+
+/* ---------------- read ---------------- */
+async function load(){
+  if(!streamId) return;
+  const token=++loadToken;
+  try{
+    const r=await rd(SC,ABI,c=>c.getStream(streamId));
+    if(token!==loadToken) return;
+    if(!r[0]){
+      st=null; if(raf){cancelAnimationFrame(raf);raf=null;}
+      $("gaugeLab").textContent="Stream #"+streamId+" doesn't exist";
+      $("liveOut").innerHTML="—";
+      $("rateOut").textContent="Nothing at that number yet. The first stream is #1.";
+      $("gaugeActs").innerHTML=""; return;
+    }
+    st={sender:r[1],recipient:r[2],deposit:r[3],withdrawn:r[4],
+        startTime:Number(r[7]),stopTime:Number(r[8]),cancelledAt:Number(r[9]),
+        cancellable:r[10],memo:r[11]};
+    render();
+    if(!raf) raf=requestAnimationFrame(tick);
+  }catch(e){
+    if(token!==loadToken) return;
+    console.error(e);
+    $("rateOut").textContent="Couldn't reach the contract — public RPCs throttle under load. Reload in a moment.";
+  }
+}
+
+function render(){
+  const s=st, t=nowS();
+  const mine = me && (s.sender.toLowerCase()===me.toLowerCase() || s.recipient.toLowerCase()===me.toLowerCase());
+  const isRecip = me && s.recipient.toLowerCase()===me.toLowerCase();
+  const isSender = me && s.sender.toLowerCase()===me.toLowerCase();
+
+  $("gaugeLab").textContent = "Stream #"+streamId+" · "+
+    (isSender?"you → "+shortA(s.recipient) : isRecip?shortA(s.sender)+" → you"
+      : shortA(s.sender)+" → "+shortA(s.recipient));
+  $("memoOut").textContent = s.memo || "";
+
+  const dur=s.stopTime-s.startTime;
+  const perDay=Number(s.deposit)/dur*86400/1e6;
+  const rate = perDay>=1 ? perDay.toFixed(2)+" USDC a day"
+             : (perDay*24).toFixed(4)+" USDC an hour";
+
+  if(s.cancelledAt) $("rateOut").textContent="Stopped "+new Date(s.cancelledAt*1000).toLocaleString()+". Both sides were settled at that moment.";
+  else if(t>=s.stopTime) $("rateOut").textContent="Finished. The whole deposit has been earned.";
+  else if(t<s.startTime) $("rateOut").textContent="Starts "+new Date(s.startTime*1000).toLocaleString()+" · "+rate;
+  else $("rateOut").textContent=rate+(s.cancellable?"":" · unstoppable, can't be cancelled by either side");
+
+  $("mStart").textContent=new Date(s.startTime*1000).toLocaleDateString()+" "+new Date(s.startTime*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  $("mStop").textContent=new Date(s.stopTime*1000).toLocaleDateString()+" "+new Date(s.stopTime*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  $("mDep").textContent=f(s.deposit)+" USDC";
+
+  let acts="";
+  const live = !s.cancelledAt;
+  if(isRecip && live) acts+='<button id="wBtn">Withdraw what\'s ready</button>';
+  if(mine && live && s.cancellable) acts+='<button id="cBtn" class="warn">Stop the stream</button>';
+  $("gaugeActs").innerHTML=acts;
+  if($("wBtn")) $("wBtn").onclick=doWithdraw;
+  if($("cBtn")) $("cBtn").onclick=doCancel;
+
+  $("gaugeWhy").className="why";
+  if(!me) $("gaugeWhy").textContent="Connect a wallet to act on this stream.";
+  else if(!mine) $("gaugeWhy").textContent="You're neither side of this one, so you can read it but not touch it.";
+  else if(s.cancelledAt) $("gaugeWhy").textContent="Already settled — nothing further to do.";
+  else if(isRecip && !s.cancellable) $("gaugeWhy").textContent="This stream can't be stopped by anyone. The full "+f(s.deposit)+" USDC is yours as it accrues.";
+  else if(isSender && s.cancellable) $("gaugeWhy").textContent="Stopping pays the recipient what's accrued and returns the rest to you immediately. Nothing is forfeited either way.";
+  else $("gaugeWhy").textContent="";
+}
+
+async function loadMine(){
+  if(!me) return;
+  try{
+    const [out,inc]=await Promise.all([
+      rd(SC,ABI,c=>c.outgoingOf(me)),
+      rd(SC,ABI,c=>c.incomingOf(me))
+    ]);
+    const ids=[...new Set([...out,...inc].map(x=>Number(x)))].sort((a,b)=>b-a).slice(0,20);
+    if(!ids.length){ $("mine").innerHTML='<p class="why">Nothing yet. Open one above.</p>'; return; }
+    const rows=[];
+    for(const id of ids){
+      const r=await rd(SC,ABI,c=>c.getStream(id));
+      if(!r[0]) continue;
+      const dir = r[1].toLowerCase()===me.toLowerCase() ? "out" : "in";
+      const t=nowS(), cancelled=Number(r[9])>0, done=t>=Number(r[8]);
+      const tag = cancelled?'<span class="tag stop">Stopped</span>'
+                : done?'<span class="tag done">Finished</span>'
+                : t<Number(r[7])?'<span class="tag soon">Starts soon</span>'
+                : '<span class="tag run">Flowing</span>';
+      rows.push('<div class="item" data-id="'+id+'"><span><b>#'+id+'</b> · '+
+        (dir==="out"?"to "+shortA(r[2]):"from "+shortA(r[1]))+' · '+f(r[3])+' USDC'+
+        (r[11]?' · '+r[11]:'')+'</span>'+tag+'</div>');
+    }
+    $("mine").innerHTML=rows.join("")||'<p class="why">Nothing yet.</p>';
+    $("mine").querySelectorAll(".item").forEach(el=>el.onclick=()=>openId(Number(el.dataset.id)));
+  }catch(_){}
+}
+
+function openId(id){
+  streamId=id; $("lookup").value=id;
+  history.replaceState(null,"",location.pathname+"?id="+id);
+  if(raf){cancelAnimationFrame(raf);raf=null;}
+  load(); window.scrollTo({top:0,behavior:"smooth"});
+}
+$("lookupBtn").onclick=()=>{ const v=parseInt($("lookup").value,10); if(v>0) openId(v); };
+
+/* ---------------- connect ---------------- */
+(async function restore(){
+  if(!window.ethereum) return;
+  try{ const a=await window.ethereum.request({method:"eth_accounts"}); if(a&&a.length) await connect(true); }catch(_){}
+})();
+
+$("openBtn").onclick=()=>signer?doOpen():connect(false);
+
+async function connect(silent){
+  if(!window.ethereum){
+    if(!silent){ $("openWhy").textContent="No wallet in this browser."; $("openWhy").className="why warn"; }
+    return;
+  }
+  try{
+    if(!silent) await window.ethereum.request({method:"eth_requestAccounts"});
+    const n=await window.ethereum.request({method:"eth_chainId"});
+    if(parseInt(n,16)!==CHAIN){
+      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC.chainId}]}); }
+      catch(e){ if(e.code===4902) await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC]}); else throw e; }
+    }
+    const bp=new ethers.BrowserProvider(window.ethereum);
+    wp=bp; signer=await bp.getSigner(); me=await signer.getAddress();
+    $("openBtn").textContent="Open the stream";
+    try{ bal=await rd(USDC,USDC_ABI,c=>c.balanceOf(me));
+         allowance=await rd(USDC,USDC_ABI,c=>c.allowance(me,SC)); }catch(_){}
+    $("mineWhy") && ($("mineWhy").textContent="Loading…");
+    await Promise.all([load(),loadMine()]);
+    if(st) render();
+  }catch(e){
+    if(!silent){ $("openWhy").textContent="Wallet didn't connect: "+(e.shortMessage||e.message); $("openWhy").className="why warn"; }
+  }
+}
+
+/* ---------------- write ---------------- */
+const ERRS={
+  SelfStream:"You can't stream to yourself.",
+  BadWindow:"The end has to come after the start, and the start can't be in the past.",
+  DurationTooShort:"A stream has to run at least a minute.",
+  DepositTooSmall:"Too small for that duration — every second needs at least one unit to flow.",
+  NoSuchStream:"No stream at that number.",
+  NotParty:"You're not a party to this stream.",
+  AlreadyCancelled:"This one was already stopped.",
+  NotCancellable:"This stream was created unstoppable. Nobody can cancel it, including its sender.",
+  NothingToWithdraw:"Nothing has accrued yet. Give it a moment.",
+  MoreThanAvailable:"That's more than has accrued so far.",
+  ZeroAmount:"Amount can't be zero.",
+  ZeroAddress:"That address isn't valid."
+};
+function why(e){
+  const m=e.shortMessage||e.message||"";
+  if(m.includes("rejected")||e?.code==="ACTION_REJECTED") return "You rejected the signature. Nothing happened.";
+  let r=e?.revert;
+  if(!r){ const d=e?.data||e?.info?.error?.data||e?.error?.data;
+    if(typeof d==="string"){ try{ r=IFACE.parseError(d); }catch(_){} } }
+  if(r&&ERRS[r.name]){
+    if(r.name==="DepositTooSmall"&&r.args) return "Too small for that duration — the minimum is "+f(r.args[1])+" USDC.";
+    if(r.name==="MoreThanAvailable"&&r.args) return "Only "+f(r.args[1])+" USDC has accrued so far.";
+    return ERRS[r.name];
+  }
+  if(r) return "Reverted: "+r.name;
+  if(m.includes("insufficient funds")) return "Not enough USDC to cover it plus gas.";
+  return "Failed: "+m;
+}
+
+async function doOpen(){
+  const b=$("openBtn"); b.disabled=true;
+  try{
+    const to=$("nRecip").value.trim();
+    if(!ethers.isAddress(to)) throw new Error("That recipient address isn't valid");
+    const amt=p6($("nAmt").value.trim()||"0");
+    if(amt===0n) throw new Error("Enter an amount");
+    if(amt>bal) throw new Error("You hold "+f(bal)+" USDC");
+    const dur=parseInt($("nDur").value,10);
+    const stop=nowS()+dur+30;   // small cushion so start isn't stale on mine
+    if(allowance<amt){
+      b.textContent="Approve in wallet…";
+      const u=new ethers.Contract(USDC,USDC_ABI,signer);
+      await (await u.approve(SC,amt)).wait(); allowance=amt;
+    }
+    b.textContent="Opening…";
+    const c=new ethers.Contract(SC,ABI,signer);
+    const tx=await c.open(to,amt,0,stop,$("nCancel").checked,$("nMemo").value.trim());
+    const rc=await tx.wait();
+    let id=0;
+    for(const lg of rc.logs){
+      try{ const p=IFACE.parseLog(lg); if(p&&p.name==="StreamOpened"){ id=Number(p.args[0]); break; } }catch(_){}
+    }
+    $("nAmt").value=""; $("nMemo").value="";
+    try{ bal=await rd(USDC,USDC_ABI,c2=>c2.balanceOf(me)); }catch(_){}
+    await loadMine();
+    if(id) openId(id);
+    $("openWhy").textContent="Flowing. It's already accruing to them.";
+    $("openWhy").className="why ok";
+  }catch(e){ $("openWhy").textContent=why(e); $("openWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent=signer?"Open the stream":"Connect wallet"; }
+}
+
+async function doWithdraw(){
+  const b=$("wBtn"); b.disabled=true; b.textContent="Confirm…";
+  try{
+    const c=new ethers.Contract(SC,ABI,signer);
+    await (await c.withdrawAll(streamId)).wait();
+    await load(); await loadMine();
+    $("gaugeWhy").textContent="Withdrawn. The counter keeps running on what's left.";
+    $("gaugeWhy").className="why ok";
+  }catch(e){ $("gaugeWhy").textContent=why(e); $("gaugeWhy").className="why warn";
+    b.disabled=false; b.textContent="Withdraw what's ready"; }
+}
+
+let armCancel=false;
+async function doCancel(){
+  const b=$("cBtn");
+  if(!armCancel){
+    armCancel=true;
+    b.textContent="Confirm — stop it?";
+    const val=streamedNow(st,Date.now());
+    $("gaugeWhy").textContent="Stopping now sends about "+f(BigInt(Math.max(0,Math.floor(val-Number(st.withdrawn)))))+
+      " USDC to the recipient and returns about "+f(BigInt(Math.max(0,Math.floor(Number(st.deposit)-val))))+
+      " USDC to the sender. It can't be restarted.";
+    $("gaugeWhy").className="why warn";
+    setTimeout(()=>{ if(armCancel){ armCancel=false; if($("cBtn")) $("cBtn").textContent="Stop the stream"; } },6000);
+    return;
+  }
+  armCancel=false; b.disabled=true; b.textContent="Confirm…";
+  try{
+    const c=new ethers.Contract(SC,ABI,signer);
+    await (await c.cancel(streamId)).wait();
+    await load(); await loadMine();
+    $("gaugeWhy").textContent="Stopped and settled. Both sides were paid in that transaction.";
+    $("gaugeWhy").className="why ok";
+  }catch(e){ $("gaugeWhy").textContent=why(e); $("gaugeWhy").className="why warn";
+    b.disabled=false; b.textContent="Stop the stream"; }
+}
+
+if(streamId) load();
+</script>
+</body>
+</html>

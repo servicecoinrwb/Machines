@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bellwether</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  /* ============================================================
+     A market is a question put to the public, so the page is a
+     broadsheet: newsprint, editorial serif, one rule between
+     columns. The odds aren't decoration — the split of the bar IS
+     the crowd's answer, and it moves as people stake.
+     Deliberately light; everything else in this family is dark.
+     ============================================================ */
+  :root{
+    --paper:#f4f1e9;
+    --paper-2:#eae5d9;
+    --ink:#1b1a17;
+    --dim:rgba(27,26,23,.6);
+    --faint:rgba(27,26,23,.38);
+    --rule:rgba(27,26,23,.18);
+    --rule-hard:rgba(27,26,23,.4);
+    --yes:#1d6f56;
+    --no:#a83232;
+    --accent:#b03a1e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--paper);
+    background-image:radial-gradient(1000px 500px at 50% 0,rgba(27,26,23,.035),transparent 70%);
+    color:var(--ink);font-family:"Public Sans",system-ui,sans-serif;
+    font-size:16px;line-height:1.6;padding:24px 16px 80px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:680px}
+
+  /* masthead */
+  .mast{border-bottom:3px double var(--rule-hard);padding-bottom:12px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+  .name{font-family:"Newsreader",serif;font-weight:600;font-size:36px;line-height:1;
+    letter-spacing:-.02em;margin:0}
+  .name i{font-style:italic;color:var(--accent)}
+  .mast .sub{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--faint);text-align:right;line-height:1.7}
+  .dateline{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--rule);
+    padding-bottom:10px;margin-bottom:26px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+  h1.lead{font-family:"Newsreader",serif;font-weight:600;font-size:clamp(27px,6.4vw,38px);
+    line-height:1.14;letter-spacing:-.015em;margin:0 0 12px}
+  .standfirst{font-size:16.5px;color:var(--dim);margin:0 0 4px;max-width:56ch}
+
+  /* ---------- SIGNATURE: the odds board ---------- */
+  .board{border:1px solid var(--rule-hard);background:#fbf9f4;margin:26px 0 14px}
+  .board-head{padding:18px 20px 14px;border-bottom:1px solid var(--rule)}
+  .qno{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 7px}
+  .question{font-family:"Newsreader",serif;font-weight:600;font-size:24px;line-height:1.24;
+    margin:0;letter-spacing:-.01em}
+  .qmeta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--faint);margin:9px 0 0;line-height:1.7}
+
+  .odds{padding:18px 20px}
+  .odds-top{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:10px}
+  .side-read{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--faint);margin:0 0 3px}
+  .pct{font-family:"Newsreader",serif;font-weight:600;font-size:clamp(30px,8vw,44px);line-height:1;
+    font-variant-numeric:tabular-nums;margin:0}
+  .pct.y{color:var(--yes)} .pct.n{color:var(--no);text-align:right}
+  .odds-bar{display:flex;height:26px;border:1px solid var(--rule-hard);overflow:hidden}
+  .ob-y{background:var(--yes);transition:width .4s cubic-bezier(.4,0,.2,1)}
+  .ob-n{background:var(--no);transition:width .4s cubic-bezier(.4,0,.2,1)}
+  .pools{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+    font-size:10.5px;color:var(--dim);margin-top:7px}
+  .pools b{color:var(--ink);font-weight:500}
+  .odds-note{font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.65;
+    color:var(--faint);margin:12px 0 0;border-top:1px dashed var(--rule);padding-top:10px}
+
+  .mine{border-top:1px solid var(--rule);padding:14px 20px;background:var(--paper-2);
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim)}
+  .mine b{color:var(--ink);font-weight:500}
+  .acts{display:flex;gap:9px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid var(--rule)}
+  .acts button{flex:1;min-width:150px;width:auto}
+  .acts:empty{display:none}
+
+  /* panels */
+  .panel{border:1px solid var(--rule-hard);background:#fbf9f4;padding:19px;margin-bottom:13px}
+  .panel h2{font-family:"Newsreader",serif;font-weight:600;font-size:21px;margin:0 0 4px;letter-spacing:-.01em}
+  .how{font-size:13.5px;color:var(--dim);margin:0 0 15px}
+  label{display:block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--faint);margin:0 0 6px}
+  input,select{width:100%;font-family:"IBM Plex Mono",monospace;font-size:14px;padding:10px 11px;
+    border:1px solid var(--rule-hard);background:#fff;color:var(--ink);margin-bottom:10px}
+  input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  input::placeholder{color:rgba(27,26,23,.3)}
+  button{font-family:"Public Sans",sans-serif;font-size:14.5px;font-weight:600;border:1px solid var(--ink);
+    padding:11px 17px;cursor:pointer;width:100%;background:var(--ink);color:var(--paper);transition:opacity .14s}
+  button:hover:not(:disabled){opacity:.86}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button:disabled{background:var(--paper-2);border-color:var(--rule);color:var(--faint);cursor:not-allowed}
+  button.yes{background:var(--yes);border-color:var(--yes);color:#fff}
+  button.no{background:var(--no);border-color:var(--no);color:#fff}
+  button.ghost{background:transparent;color:var(--ink)}
+  button.ghost:hover:not(:disabled){background:rgba(27,26,23,.05)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .why{font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.65;color:var(--dim);margin:10px 0 0}
+  .why.warn{color:var(--no)}
+  .why.ok{color:var(--yes)}
+  .quote{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--paper-2);
+    border-left:2px solid var(--accent);padding:10px 12px;margin:0 0 11px;color:var(--dim)}
+  .quote b{color:var(--ink);font-weight:600}
+
+  .tabs{display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid var(--rule)}
+  .tab{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+    padding:8px 13px;cursor:pointer;color:var(--faint);border-bottom:2px solid transparent;user-select:none}
+  .tab.on{color:var(--ink);border-bottom-color:var(--accent)}
+
+  .list .item{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:13px 0;border-bottom:1px solid var(--rule);cursor:pointer}
+  .list .item:last-child{border-bottom:0}
+  .list .item:hover .iq{color:var(--accent)}
+  .iq{font-family:"Newsreader",serif;font-size:16px;line-height:1.3;flex:1;min-width:200px}
+  .ipct{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;white-space:nowrap}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.11em;text-transform:uppercase;
+    padding:2px 7px;border:1px solid currentColor;white-space:nowrap}
+  .t-open{color:var(--yes)} .t-pend{color:var(--accent)} .t-disp{color:var(--no)}
+  .t-done{color:var(--faint)}
+
+  footer{margin-top:44px;padding-top:18px;border-top:3px double var(--rule-hard);
+    font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.85;color:var(--faint);text-align:center}
+  footer a{color:var(--accent)}
+  a{color:var(--accent)}
+  .hidden{display:none !important}
+  @media (max-width:560px){ .two{grid-template-columns:1fr} .acts button{min-width:100%} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="mast">
+    <h1 class="name">Bell<i>wether</i></h1>
+    <div class="sub">Prediction markets<br>on Arc</div>
+  </div>
+  <div class="dateline">
+    <span id="dateOut">—</span>
+    <span id="net">Arc Testnet · testnet dollars only</span>
+  </div>
+
+  <h1 class="lead">Ask a question. Let the money answer.</h1>
+  <p class="standfirst">Both sides stake into one pot and whoever's right splits it. The odds aren't quoted by a bookmaker — they're just the shape of the pool, and they move as people put money down.</p>
+
+  <!-- SIGNATURE: the odds board -->
+  <section class="board" id="board">
+    <div class="board-head">
+      <p class="qno" id="qno">No market loaded</p>
+      <h2 class="question" id="question">Open one below, or load a market by number.</h2>
+      <p class="qmeta" id="qmeta"></p>
+    </div>
+
+    <div class="odds">
+      <div class="odds-top">
+        <div>
+          <p class="side-read">Yes</p>
+          <p class="pct y" id="pctYes">—</p>
+        </div>
+        <div>
+          <p class="side-read" style="text-align:right">No</p>
+          <p class="pct n" id="pctNo">—</p>
+        </div>
+      </div>
+      <div class="odds-bar">
+        <div class="ob-y" id="barYes" style="width:50%"></div>
+        <div class="ob-n" id="barNo" style="width:50%"></div>
+      </div>
+      <div class="pools">
+        <span>Yes pool <b id="poolYes">—</b></span>
+        <span>Total <b id="poolAll">—</b></span>
+        <span>No pool <b id="poolNo">—</b></span>
+      </div>
+      <p class="odds-note" id="oddsNote">The percentages are the pools, nothing more — a market's odds are its participants' money, not anyone's forecast.</p>
+    </div>
+
+    <div class="mine hidden" id="mine"></div>
+    <div class="acts" id="acts"></div>
+  </section>
+
+  <section class="panel hidden" id="stakePanel">
+    <h2>Back a side</h2>
+    <p class="how">Your payout is your share of the winning pool. Odds move as others stake, so what you see is a snapshot, never a promise.</p>
+    <label for="stakeAmt">Amount (USDC)</label>
+    <input id="stakeAmt" placeholder="25.00" inputmode="decimal" autocomplete="off">
+    <p class="quote" id="stakeQuote">Enter an amount to see what each side would return.</p>
+    <div class="two">
+      <button id="yesBtn" class="yes" disabled>Back Yes</button>
+      <button id="noBtn" class="no" disabled>Back No</button>
+    </div>
+    <p class="why" id="stakeWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Open a market</h2>
+    <p class="how">Anyone can. You set the fee you take on resolution, capped at 5% and paid only if the market actually resolves.</p>
+
+    <div class="tabs">
+      <div class="tab on" data-mode="1" id="tabOpt">Human-resolved</div>
+      <div class="tab" data-mode="0" id="tabFeed">Price feed</div>
+    </div>
+
+    <label for="nQ">The question</label>
+    <input id="nQ" placeholder="Will Arc mainnet be live before October?" maxlength="140" autocomplete="off">
+
+    <div id="optFields">
+      <label for="nArb">Arbiter — who rules if a proposal is challenged</label>
+      <input id="nArb" placeholder="0x…" autocomplete="off">
+      <label for="nBond">Bond to propose or challenge (USDC)</label>
+      <input id="nBond" placeholder="5.00" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div id="feedFields" class="hidden">
+      <label for="nFeed">Price feed address (AggregatorV3)</label>
+      <input id="nFeed" placeholder="0x…" autocomplete="off">
+      <div class="two">
+        <div>
+          <label for="nCmp">Resolves Yes if the answer is</label>
+          <select id="nCmp">
+            <option value="0">above</option>
+            <option value="1">at or above</option>
+            <option value="2">below</option>
+            <option value="3">at or below</option>
+          </select>
+        </div>
+        <div>
+          <label for="nThresh">Threshold (raw feed units)</label>
+          <input id="nThresh" placeholder="300000000000" inputmode="numeric" autocomplete="off">
+        </div>
+      </div>
+      <p class="why">Feed markets settle themselves — nobody rules on them. Only usable where such a feed exists on Arc.</p>
+    </div>
+
+    <div class="two">
+      <div>
+        <label for="nClose">Staking closes in</label>
+        <select id="nClose">
+          <option value="600">10 minutes (demo)</option>
+          <option value="3600">1 hour</option>
+          <option value="86400" selected>1 day</option>
+          <option value="604800">1 week</option>
+        </select>
+      </div>
+      <div>
+        <label for="nFee">Your fee (%)</label>
+        <input id="nFee" placeholder="2" inputmode="decimal" autocomplete="off">
+      </div>
+    </div>
+    <button id="openBtn">Connect wallet</button>
+    <p class="why" id="openWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>The board</h2>
+    <div class="list" id="list"><p class="why">Reading the chain…</p></div>
+  </section>
+
+  <footer>
+    Contract <span id="addrOut">—</span><br>
+    <a href="./bellwether-guide.html">What is this?</a> · <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">Read the source</a> · unaudited · no admin keys · testnet funds only
+  </footer>
+</div>
+
+<script>
+const NETWORKS={
+  testnet:{ label:"Arc Testnet", chainId:5042002,
+    rpcs:["https://rpc.blockdaemon.testnet.arc.network","https://arc-testnet.drpc.org","https://rpc.quicknode.testnet.arc.network","https://5042002.rpc.thirdweb.com","https://rpc.testnet.arc.network","https://rpc.testnet.arc.io"],
+    explorer:"https://testnet.arcscan.app",
+    market:"0xb3Ce8d295BB73c71F219130f532b348534615a61",
+    usdc:"0x3600000000000000000000000000000000000000" },
+  mainnet:{ label:"Arc", chainId:0, rpcs:[], explorer:"", market:"", usdc:"" }
+};
+const ACTIVE="testnet";
+const NET=NETWORKS[new URLSearchParams(location.search).get("net")]||NETWORKS[ACTIVE];
+const MK=NET.market, USDC=NET.usdc, RPCS=NET.rpcs||[], CHAIN=NET.chainId, EXPLORER=NET.explorer;
+const DEC=6n;
+
+const ABI=[
+  "function getMarket(uint256) view returns (tuple(bool exists,address creator,address arbiter,string question,uint8 mode,uint8 state,uint8 outcome,uint256 poolYes,uint256 poolNo,uint256 bond,uint16 feeBps,uint64 closesAt,uint64 resolvesAt,uint64 challengeEnds,uint64 voidAfter,address feed,int256 threshold,uint8 cmp,address proposer,uint8 proposed))",
+  "function positionOf(uint256,address) view returns (uint256 yes,uint256 no,bool claimed,uint256 claimable)",
+  "function quote(uint256,uint8,uint256) view returns (uint256)",
+  "function nextId() view returns (uint256)",
+  "function openOptimisticMarket(string,address,uint128,uint64,uint64,uint16) returns (uint256)",
+  "function openFeedMarket(string,address,int256,uint8,uint64,uint64,uint16) returns (uint256)",
+  "function stake(uint256,uint8,uint256)",
+  "function propose(uint256,uint8)",
+  "function challenge(uint256)",
+  "function finalizeUnchallenged(uint256)",
+  "function rule(uint256,uint8)",
+  "function settleFromFeed(uint256)",
+  "function voidMarket(uint256)",
+  "function claim(uint256)",
+  "error ZeroAddress()","error ZeroAmount()","error BadWindow()","error BadFee(uint16 bps,uint16 max)",
+  "error NoSuchMarket()","error NotOpen()","error StillOpen()","error AlreadyResolved()",
+  "error NotProposable()","error AlreadyProposed()","error ChallengeOpen(uint64 until)",
+  "error ChallengeClosed()","error NotArbiter()","error NotDisputed()","error NotSettled()",
+  "error NothingToClaim()","error BelowMinStake(uint256 sent,uint256 min)",
+  "error FeedStale(uint256 updatedAt)","error FeedNotSet()","error NotFeedMarket()",
+  "error NotOptimisticMarket()","error Reentrant()"
+];
+const USDC_ABI=[
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)"
+];
+const IFACE=new ethers.Interface(ABI);
+const ARC={chainId:"0x"+CHAIN.toString(16),chainName:NET.label,
+  nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18},rpcUrls:RPCS,blockExplorerUrls:[EXPLORER]};
+
+const S_OPEN=0,S_PEND=1,S_DISP=2,S_SET=3,S_VOID=4;
+const SIDE_NO=0, SIDE_YES=1;
+
+const $=id=>document.getElementById(id);
+const f=v=>Number(ethers.formatUnits(v,DEC)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const p6=s=>ethers.parseUnits(s,DEC);
+const shortA=a=>a.slice(0,6)+"…"+a.slice(-4);
+const nowS=()=>Math.floor(Date.now()/1000);
+function cdown(s){
+  if(s<=0) return "0:00";
+  const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),x=s%60;
+  if(d) return d+"d "+h+"h";
+  if(h) return h+"h "+String(m).padStart(2,"0")+"m";
+  return m+":"+String(x).padStart(2,"0");
+}
+
+const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
+let wp=null;
+const readers=()=>wp?[wp,...pool]:pool;
+async function rd(addr,abi,fn){ let e; for(const p of readers()){ try{ return await fn(new ethers.Contract(addr,abi,p)); }catch(x){e=x;} } throw e; }
+
+let signer=null,me=null,mk=null,pos=null,mid=0,allowance=0n,bal=0n,tick=null,loadToken=0,newMode=1;
+
+$("addrOut").textContent=MK||"not deployed";
+$("net").textContent=NET.label+" · testnet dollars only";
+$("dateOut").textContent=new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+mid=parseInt(new URLSearchParams(location.search).get("m")||"0",10)||0;
+
+/* ---------------- read ---------------- */
+async function load(){
+  if(!mid){ renderList(); return; }
+  const token=++loadToken;
+  try{
+    const v=await rd(MK,ABI,c=>c.getMarket(mid));
+    if(token!==loadToken) return;
+    if(!v.exists){
+      mk=null;
+      $("qno").textContent="Market #"+mid+" doesn't exist";
+      $("question").textContent="Nothing at that number. The first market is #1.";
+      $("acts").innerHTML=""; $("stakePanel").classList.add("hidden");
+      renderList(); return;
+    }
+    mk={creator:v.creator,arbiter:v.arbiter,question:v.question,mode:Number(v.mode),
+        state:Number(v.state),outcome:Number(v.outcome),poolYes:v.poolYes,poolNo:v.poolNo,
+        bond:v.bond,feeBps:Number(v.feeBps),closesAt:Number(v.closesAt),resolvesAt:Number(v.resolvesAt),
+        challengeEnds:Number(v.challengeEnds),voidAfter:Number(v.voidAfter),feed:v.feed,
+        proposer:v.proposer,proposed:Number(v.proposed)};
+    if(me){
+      const p=await rd(MK,ABI,c=>c.positionOf(mid,me));
+      pos={yes:p[0],no:p[1],claimed:p[2],claimable:p[3]};
+    } else pos=null;
+    render();
+    if(!tick) tick=setInterval(renderMeta,1000);
+    renderList();
+  }catch(e){
+    if(token!==loadToken) return;
+    console.error(e);
+    $("qmeta").textContent="Couldn't reach the contract — public RPCs throttle under load. Reload in a moment.";
+  }
+}
+
+/* SIGNATURE — the split of the bar IS the market's answer */
+function renderOdds(){
+  const y=Number(ethers.formatUnits(mk.poolYes,DEC));
+  const n=Number(ethers.formatUnits(mk.poolNo,DEC));
+  const tot=y+n;
+  const py = tot>0 ? (y/tot)*100 : 50;
+  $("barYes").style.width=py+"%";
+  $("barNo").style.width=(100-py)+"%";
+  $("pctYes").textContent = tot>0 ? py.toFixed(0)+"%" : "—";
+  $("pctNo").textContent  = tot>0 ? (100-py).toFixed(0)+"%" : "—";
+  $("poolYes").textContent=f(mk.poolYes);
+  $("poolNo").textContent=f(mk.poolNo);
+  $("poolAll").textContent=f(mk.poolYes+mk.poolNo);
+
+  $("oddsNote").textContent = tot===0
+    ? "Nothing staked yet, so there are no odds — the first money in sets them."
+    : (mk.poolYes===0n||mk.poolNo===0n)
+      ? "Only one side has money in it. A market with no opposing stake voids on resolution and everyone is refunded — it isn't a market yet."
+      : "The percentages are the pools, nothing more. A market's odds are its participants' money, not anyone's forecast.";
+}
+
+function renderMeta(){
+  if(!mk) return;
+  const t=nowS();
+  const bits=[];
+  bits.push(mk.mode===0 ? "Settles from a price feed" : "Resolved by people · arbiter "+shortA(mk.arbiter));
+  bits.push("Creator fee "+(mk.feeBps/100).toFixed(2)+"%");
+
+  if(mk.state===S_OPEN && t<mk.closesAt) bits.push("Staking closes in "+cdown(mk.closesAt-t));
+  else if(mk.state===S_OPEN && t<mk.resolvesAt) bits.push("Staking closed · resolves in "+cdown(mk.resolvesAt-t));
+  else if(mk.state===S_OPEN) bits.push(mk.mode===0?"Ready to settle from the feed":"Awaiting a proposed outcome");
+  else if(mk.state===S_PEND) bits.push((mk.proposed===SIDE_YES?"Yes":"No")+" proposed by "+shortA(mk.proposer)+
+      (t<mk.challengeEnds ? " · challengeable for "+cdown(mk.challengeEnds-t) : " · challenge window closed"));
+  else if(mk.state===S_DISP) bits.push("Disputed · waiting on the arbiter"+
+      (mk.voidAfter>t ? ", voids in "+cdown(mk.voidAfter-t) : ", past deadline — anyone can void it"));
+  else if(mk.state===S_SET) bits.push("Settled: "+(mk.outcome===SIDE_YES?"Yes":"No"));
+  else if(mk.state===S_VOID) bits.push("Voided — every stake refundable in full");
+
+  $("qmeta").textContent=bits.join(" · ");
+}
+
+function render(){
+  const t=nowS();
+  $("qno").textContent="Market #"+mid;
+  $("question").textContent=mk.question||"Untitled market";
+  renderOdds(); renderMeta();
+
+  // your position
+  if(pos && (pos.yes>0n||pos.no>0n)){
+    $("mine").classList.remove("hidden");
+    const parts=[];
+    if(pos.yes>0n) parts.push("<b>"+f(pos.yes)+"</b> on Yes");
+    if(pos.no>0n) parts.push("<b>"+f(pos.no)+"</b> on No");
+    let tail="";
+    if(mk.state===S_SET) tail = pos.claimed ? " · already claimed"
+      : pos.claimable>0n ? " · <b>"+f(pos.claimable)+" USDC</b> to collect" : " · this one didn't come in";
+    if(mk.state===S_VOID) tail = pos.claimed ? " · refund taken" : " · <b>"+f(pos.claimable)+" USDC</b> refundable";
+    $("mine").innerHTML="Your position: "+parts.join(" and ")+tail;
+  } else $("mine").classList.add("hidden");
+
+  // actions
+  let a="";
+  const staking = mk.state===S_OPEN && t<mk.closesAt;
+  const resolvable = mk.state===S_OPEN && t>=mk.resolvesAt;
+  if(resolvable && mk.mode===0) a+='<button id="feedBtn">Settle from the feed</button>';
+  if(resolvable && mk.mode===1){
+    a+='<button id="propYes" class="yes">Propose Yes</button><button id="propNo" class="no">Propose No</button>';
+  }
+  if(mk.state===S_PEND && t<mk.challengeEnds) a+='<button id="chalBtn" class="ghost">Challenge this</button>';
+  if(mk.state===S_PEND && t>=mk.challengeEnds) a+='<button id="finBtn">Finalize it</button>';
+  if(mk.state===S_DISP && me && mk.arbiter.toLowerCase()===me.toLowerCase()){
+    a+='<button id="ruleYes" class="yes">Rule Yes</button><button id="ruleNo" class="no">Rule No</button>';
+  }
+  if(mk.state===S_DISP && t>=mk.voidAfter) a+='<button id="voidBtn" class="ghost">Void it — arbiter never ruled</button>';
+  if((mk.state===S_SET||mk.state===S_VOID) && pos && pos.claimable>0n) a+='<button id="claimBtn">Claim '+f(pos.claimable)+' USDC</button>';
+  $("acts").innerHTML=a;
+
+  const bind=(id,fn)=>{ if($(id)) $(id).onclick=fn; };
+  bind("feedBtn",()=>simple("settleFromFeed","feedBtn","Settle from the feed"));
+  bind("propYes",()=>withSide("propose",SIDE_YES,"propYes","Propose Yes"));
+  bind("propNo",()=>withSide("propose",SIDE_NO,"propNo","Propose No"));
+  bind("chalBtn",()=>simple("challenge","chalBtn","Challenge this"));
+  bind("finBtn",()=>simple("finalizeUnchallenged","finBtn","Finalize it"));
+  bind("ruleYes",()=>withSide("rule",SIDE_YES,"ruleYes","Rule Yes"));
+  bind("ruleNo",()=>withSide("rule",SIDE_NO,"ruleNo","Rule No"));
+  bind("voidBtn",()=>simple("voidMarket","voidBtn","Void it — arbiter never ruled"));
+  bind("claimBtn",()=>simple("claim","claimBtn","Claim"));
+
+  $("stakePanel").classList.toggle("hidden", !(staking && signer));
+  quoteStake();
+}
+
+async function quoteStake(){
+  if(!mk||!signer) return;
+  const v=$("stakeAmt").value.trim();
+  if(!v||isNaN(v)||Number(v)<=0){
+    $("stakeQuote").textContent="Enter an amount to see what each side would return.";
+    $("yesBtn").disabled=true; $("noBtn").disabled=true; return;
+  }
+  let amt; try{ amt=p6(v); }catch{ return; }
+  if(amt<100000n){
+    $("stakeQuote").innerHTML="Minimum stake is <b>0.10 USDC</b>.";
+    $("yesBtn").disabled=true; $("noBtn").disabled=true; return;
+  }
+  if(amt>bal){
+    $("stakeQuote").innerHTML="You hold <b>"+f(bal)+" USDC</b> — not enough, and gas comes out of the same balance.";
+    $("yesBtn").disabled=true; $("noBtn").disabled=true; return;
+  }
+  try{
+    const qy=await rd(MK,ABI,c=>c.quote(mid,SIDE_YES,amt));
+    const qn=await rd(MK,ABI,c=>c.quote(mid,SIDE_NO,amt));
+    const my=Number(ethers.formatUnits(qy,DEC))/Number(v);
+    const mn=Number(ethers.formatUnits(qn,DEC))/Number(v);
+    $("stakeQuote").innerHTML="If <b>Yes</b> wins you'd get about <b>"+f(qy)+"</b> ("+my.toFixed(2)+"×) · "+
+      "if <b>No</b> wins, about <b>"+f(qn)+"</b> ("+mn.toFixed(2)+"×). Both move as others stake.";
+    const needs=allowance<amt;
+    $("yesBtn").disabled=false; $("noBtn").disabled=false;
+    $("yesBtn").textContent=needs?"Approve, back Yes":"Back Yes";
+    $("noBtn").textContent=needs?"Approve, back No":"Back No";
+    $("stakeWhy").textContent=needs?"First stake needs two signatures: one to permit the contract, one to stake.":"";
+    $("stakeWhy").className="why";
+  }catch(e){ console.error(e); }
+}
+$("stakeAmt").addEventListener("input",quoteStake);
+
+async function renderList(){
+  try{
+    const n=Number(await rd(MK,ABI,c=>c.nextId()));
+    const ids=[]; for(let i=n-1;i>=1&&ids.length<12;i--) ids.push(i);
+    if(!ids.length){ $("list").innerHTML='<p class="why">No markets yet. Open the first one above.</p>'; return; }
+    const rows=[];
+    for(const id of ids){
+      const v=await rd(MK,ABI,c=>c.getMarket(id));
+      if(!v.exists) continue;
+      const y=Number(ethers.formatUnits(v.poolYes,DEC)), no=Number(ethers.formatUnits(v.poolNo,DEC));
+      const tot=y+no;
+      const st=Number(v.state), t=nowS();
+      const tag = st===S_SET ? '<span class="tag t-done">'+(Number(v.outcome)===SIDE_YES?"Yes":"No")+'</span>'
+                : st===S_VOID ? '<span class="tag t-done">Void</span>'
+                : st===S_DISP ? '<span class="tag t-disp">Disputed</span>'
+                : st===S_PEND ? '<span class="tag t-pend">Proposed</span>'
+                : t<Number(v.closesAt) ? '<span class="tag t-open">Open</span>'
+                : '<span class="tag t-pend">Awaiting resolution</span>';
+      const pct = tot>0 ? (y/tot*100).toFixed(0)+"%" : "—";
+      rows.push('<div class="item" data-id="'+id+'">'+
+        '<span class="iq">'+esc(v.question||"Untitled")+'</span>'+
+        '<span class="ipct" style="color:'+(tot>0?"var(--yes)":"var(--faint)")+'">'+pct+' yes</span>'+tag+'</div>');
+    }
+    $("list").innerHTML=rows.join("")||'<p class="why">No markets yet.</p>';
+    $("list").querySelectorAll(".item").forEach(el=>el.onclick=()=>openMarket(Number(el.dataset.id)));
+  }catch(_){ $("list").innerHTML='<p class="why">Chain read failed — public RPCs throttle under load.</p>'; }
+}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function openMarket(id){
+  mid=id;
+  history.replaceState(null,"",location.pathname+"?m="+id);
+  load(); window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ---------------- create tabs ---------------- */
+[$("tabOpt"),$("tabFeed")].forEach(el=>el.onclick=()=>{
+  newMode=Number(el.dataset.mode);
+  $("tabOpt").classList.toggle("on",newMode===1);
+  $("tabFeed").classList.toggle("on",newMode===0);
+  $("optFields").classList.toggle("hidden",newMode!==1);
+  $("feedFields").classList.toggle("hidden",newMode!==0);
+});
+
+/* ---------------- connect ---------------- */
+(async function restore(){
+  if(!window.ethereum) return;
+  try{ const a=await window.ethereum.request({method:"eth_accounts"}); if(a&&a.length) await connect(true); }catch(_){}
+})();
+$("openBtn").onclick=()=>signer?doOpen():connect(false);
+
+async function connect(silent){
+  if(!window.ethereum){
+    if(!silent){ $("openWhy").textContent="No wallet in this browser."; $("openWhy").className="why warn"; }
+    return;
+  }
+  try{
+    if(!silent) await window.ethereum.request({method:"eth_requestAccounts"});
+    const n=await window.ethereum.request({method:"eth_chainId"});
+    if(parseInt(n,16)!==CHAIN){
+      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC.chainId}]}); }
+      catch(e){ if(e.code===4902) await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC]}); else throw e; }
+    }
+    const bp=new ethers.BrowserProvider(window.ethereum);
+    wp=bp; signer=await bp.getSigner(); me=await signer.getAddress();
+    $("openBtn").textContent="Open the market";
+    try{ bal=await rd(USDC,USDC_ABI,c=>c.balanceOf(me));
+         allowance=await rd(USDC,USDC_ABI,c=>c.allowance(me,MK)); }catch(_){}
+    await load();
+  }catch(e){
+    if(!silent){ $("openWhy").textContent="Wallet didn't connect: "+(e.shortMessage||e.message); $("openWhy").className="why warn"; }
+  }
+}
+
+/* ---------------- write ---------------- */
+const ERRS={
+  NotOpen:"Staking has closed on this market.",
+  StillOpen:"Too early — it can't be resolved until the resolution time passes.",
+  AlreadyResolved:"This market is already settled.",
+  NotProposable:"There's nothing to propose or challenge right now.",
+  ChallengeOpen:"The challenge window is still open.",
+  ChallengeClosed:"Too late to challenge — that window closed.",
+  NotArbiter:"Only the named arbiter can rule on this.",
+  NotDisputed:"That only applies to a disputed market.",
+  NotSettled:"The market has to be resolved first.",
+  NothingToClaim:"Nothing to collect here.",
+  BelowMinStake:"That's below the 0.10 USDC minimum stake.",
+  FeedStale:"The price feed hasn't updated recently enough to settle on. A frozen feed can't decide a market.",
+  FeedNotSet:"No feed address was set.",
+  NotFeedMarket:"This market isn't resolved by a feed.",
+  NotOptimisticMarket:"This market settles from a feed, not by proposal.",
+  BadFee:"The fee is capped at 5%.",
+  BadWindow:"Those times don't work — staking must run at least five minutes and resolution can't precede the close.",
+  ZeroAmount:"Amount can't be zero.",
+  ZeroAddress:"That address isn't valid."
+};
+function why(e){
+  const m=e.shortMessage||e.message||"";
+  if(m.includes("rejected")||e?.code==="ACTION_REJECTED") return "You rejected the signature. Nothing happened.";
+  let r=e?.revert;
+  if(!r){ const d=e?.data||e?.info?.error?.data||e?.error?.data;
+    if(typeof d==="string"){ try{ r=IFACE.parseError(d); }catch(_){} } }
+  if(r&&ERRS[r.name]){
+    if(r.name==="BelowMinStake"&&r.args) return "Minimum stake is "+f(r.args[1])+" USDC.";
+    if(r.name==="ChallengeOpen"&&r.args) return "Can't finalize yet — challengeable until "+new Date(Number(r.args[0])*1000).toLocaleTimeString()+".";
+    return ERRS[r.name];
+  }
+  if(r) return "Reverted: "+r.name;
+  if(m.includes("insufficient funds")) return "Not enough USDC to cover it plus gas.";
+  return "Failed: "+m;
+}
+
+async function ensureAllowance(amount,btn,label){
+  if(allowance>=amount) return;
+  btn.textContent="Approve…";
+  const u=new ethers.Contract(USDC,USDC_ABI,signer);
+  await (await u.approve(MK,amount)).wait();
+  allowance=amount;
+}
+
+async function doStake(side){
+  const b=side===SIDE_YES?$("yesBtn"):$("noBtn");
+  const label=b.textContent; b.disabled=true;
+  try{
+    const amt=p6($("stakeAmt").value.trim());
+    await ensureAllowance(amt,b);
+    b.textContent="Staking…";
+    const c=new ethers.Contract(MK,ABI,signer);
+    await (await c.stake(mid,side,amt)).wait();
+    $("stakeAmt").value="";
+    try{ bal=await rd(USDC,USDC_ABI,x=>x.balanceOf(me)); }catch(_){}
+    await load();
+    $("stakeWhy").textContent="In. The odds moved with your money.";
+    $("stakeWhy").className="why ok";
+  }catch(e){ $("stakeWhy").textContent=why(e); $("stakeWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent=label; }
+}
+$("yesBtn").onclick=()=>doStake(SIDE_YES);
+$("noBtn").onclick=()=>doStake(SIDE_NO);
+
+async function simple(fn,btnId,label){
+  const b=$(btnId); if(!b) return;
+  b.disabled=true; b.textContent="Confirm…";
+  try{
+    const c=new ethers.Contract(MK,ABI,signer);
+    // propose and challenge both post a bond
+    if(fn==="challenge"||fn==="propose") await ensureAllowance(mk.bond,b);
+    await (await c[fn](mid)).wait();
+    try{ bal=await rd(USDC,USDC_ABI,x=>x.balanceOf(me)); }catch(_){}
+    await load();
+  }catch(e){
+    $("stakeWhy").textContent=why(e); $("stakeWhy").className="why warn";
+    b.disabled=false; b.textContent=label;
+    alert(why(e));
+  }
+}
+
+async function withSide(fn,side,btnId,label){
+  const b=$(btnId); if(!b) return;
+  b.disabled=true; b.textContent="Confirm…";
+  try{
+    const c=new ethers.Contract(MK,ABI,signer);
+    if(fn==="propose") await ensureAllowance(mk.bond,b);
+    await (await c[fn](mid,side)).wait();
+    try{ bal=await rd(USDC,USDC_ABI,x=>x.balanceOf(me)); }catch(_){}
+    await load();
+  }catch(e){
+    b.disabled=false; b.textContent=label;
+    alert(why(e));
+  }
+}
+
+async function doOpen(){
+  const b=$("openBtn"); b.disabled=true;
+  try{
+    const q=$("nQ").value.trim();
+    if(!q) throw new Error("Write the question first");
+    const closeIn=parseInt($("nClose").value,10);
+    const closesAt=nowS()+closeIn+30;
+    const resolvesAt=closesAt;              // resolvable as soon as staking ends
+    const feePct=parseFloat($("nFee").value.trim()||"0");
+    const feeBps=Math.round(feePct*100);
+    if(feeBps>500) throw new Error("Fee is capped at 5%");
+
+    b.textContent="Opening…";
+    const c=new ethers.Contract(MK,ABI,signer);
+    let tx;
+    if(newMode===1){
+      const arb=$("nArb").value.trim()||me;
+      if(!ethers.isAddress(arb)) throw new Error("That arbiter address isn't valid");
+      const bond=p6($("nBond").value.trim()||"1");
+      tx=await c.openOptimisticMarket(q,arb,bond,closesAt,resolvesAt,feeBps);
+    }else{
+      const feed=$("nFeed").value.trim();
+      if(!ethers.isAddress(feed)) throw new Error("That feed address isn't valid");
+      const thr=BigInt($("nThresh").value.trim()||"0");
+      tx=await c.openFeedMarket(q,feed,thr,Number($("nCmp").value),closesAt,resolvesAt,feeBps);
+    }
+    const rc=await tx.wait();
+    let id=0;
+    for(const lg of rc.logs){
+      try{ const p=IFACE.parseLog(lg); if(p&&p.name==="MarketOpened"){ id=Number(p.args[0]); break; } }catch(_){}
+    }
+    $("nQ").value="";
+    if(id) openMarket(id);
+    $("openWhy").textContent="Open. Share the link and let people stake.";
+    $("openWhy").className="why ok";
+  }catch(e){ $("openWhy").textContent=why(e); $("openWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent=signer?"Open the market":"Connect wallet"; }
+}
+
+load();
+</script>
+</body>
+</html>

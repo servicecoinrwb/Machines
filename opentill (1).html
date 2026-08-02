@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenTill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  /* ============================================================
+     A till is a shared pot. The one thing worth seeing is the
+     SPLIT — a single payment dividing into named shares. So the
+     hero is a live fan, not a number.
+     Palette is deliberately not a payments-blue: ink plum ground,
+     warm paper, one hot coral for money in motion.
+     ============================================================ */
+  :root{
+    --void:#221a2c;
+    --void-2:#2c2338;
+    --paper:#f8f3e9;
+    --paper-2:#efe8db;
+    --ink:#1e1726;
+    --coral:#ff5d47;
+    --mint:#1f9c74;
+    --gold:#c98a1e;
+    --line:rgba(30,23,38,.15);
+    --line-2:rgba(30,23,38,.3);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--void);
+    color:var(--paper);
+    font-family:"Karla",system-ui,sans-serif;
+    font-size:16px;line-height:1.6;
+    padding:26px 16px 72px;
+    display:flex;justify-content:center;
+  }
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:30px;flex-wrap:wrap}
+  .mark{display:flex;align-items:baseline;gap:9px}
+  .mark b{font-family:"Fraunces",serif;font-weight:700;font-size:25px;letter-spacing:-.02em;color:var(--paper)}
+  .mark b i{font-style:normal;color:var(--coral)}
+  .mark span{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:rgba(248,243,233,.4)}
+  .net{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--coral);border:1px solid rgba(255,93,71,.4);
+    padding:4px 9px;border-radius:99px}
+
+  /* ---------- hero ---------- */
+  .hero{margin-bottom:26px}
+  .kicker{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:rgba(248,243,233,.42);margin:0 0 12px}
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(34px,8vw,54px);
+    line-height:1.02;letter-spacing:-.03em;margin:0 0 8px;color:var(--paper)}
+  h1 em{font-style:italic;color:var(--coral)}
+  .lede{font-size:16.5px;color:rgba(248,243,233,.68);margin:0;max-width:52ch}
+
+  /* ---------- SIGNATURE: the split fan ---------- */
+  .fan-card{background:var(--paper);color:var(--ink);border-radius:14px;padding:22px;margin:26px 0 16px;
+    box-shadow:0 24px 50px rgba(0,0,0,.4)}
+  .fan-top{display:flex;justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .tillname{font-family:"Fraunces",serif;font-weight:600;font-size:26px;letter-spacing:-.02em;
+    line-height:1.1;margin:0;overflow-wrap:anywhere}
+  .tillmeta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:rgba(30,23,38,.45);margin:3px 0 0}
+  .lifetime{text-align:right}
+  .lifetime b{display:block;font-family:"Fraunces",serif;font-weight:600;font-size:30px;
+    line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .lifetime span{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:rgba(30,23,38,.45)}
+
+  .fan{display:flex;height:56px;border-radius:9px;overflow:hidden;background:var(--paper-2)}
+  .slice{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-width:0;border-right:2px solid var(--paper);transition:flex-basis .28s cubic-bezier(.4,0,.2,1)}
+  .slice:last-child{border-right:0}
+  .slice b{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;color:#fff;
+    white-space:nowrap;font-variant-numeric:tabular-nums}
+  .slice i{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.06em;
+    color:rgba(255,255,255,.72);white-space:nowrap}
+  .slice.s0{background:#e14a34} .slice.s1{background:#1f9c74}
+  .slice.s2{background:#c98a1e} .slice.s3{background:#5b4b8a}
+  .slice.s4{background:#2d7d9a} .slice.s5{background:#a8433f}
+  .slice.s6{background:#4a7c3f} .slice.s7{background:#8a5a2b}
+  .slice.s8{background:#6d4c7d} .slice.s9{background:#37606b}
+  .slice.s10{background:#9c5d3a} .slice.s11{background:#44576b}
+  .fan-empty{display:flex;align-items:center;justify-content:center;height:56px;border-radius:9px;
+    background:var(--paper-2);font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:rgba(30,23,38,.4)}
+  .fan-foot{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:rgba(30,23,38,.5);margin:11px 0 0}
+
+  /* ---------- how it works ---------- */
+  .works{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin:0 0 20px}
+  .work{background:var(--void-2);border:1px solid rgba(248,243,233,.1);border-radius:12px;padding:16px}
+  .work .n{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--coral);margin:0 0 7px}
+  .work h3{font-family:"Fraunces",serif;font-weight:600;font-size:17px;margin:0 0 5px;color:var(--paper)}
+  .work p{font-size:13px;line-height:1.55;color:rgba(248,243,233,.6);margin:0}
+  .work em{font-style:normal;color:rgba(248,243,233,.85)}
+
+  /* ---------- first-run walkthrough ---------- */
+  .steps{counter-reset:st;margin:0 0 14px;padding:0;list-style:none}
+  .steps li{counter-increment:st;position:relative;padding:0 0 14px 34px;
+    font-size:14px;color:rgba(248,243,233,.68);line-height:1.55}
+  .steps li::before{content:counter(st);position:absolute;left:0;top:0;width:22px;height:22px;
+    border-radius:50%;background:rgba(255,93,71,.16);color:var(--coral);
+    font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+    display:flex;align-items:center;justify-content:center}
+  .steps li:last-child{padding-bottom:0}
+  .steps b{color:var(--paper);font-weight:600}
+  .steps li.done{color:rgba(248,243,233,.38)}
+  .steps li.done::before{background:rgba(31,156,116,.2);color:#5fdcae;content:"✓"}
+  .steps li.now::before{background:var(--coral);color:#2a0f09}
+
+  /* ---------- panels ---------- */
+  .panel{background:var(--void-2);border:1px solid rgba(248,243,233,.1);border-radius:12px;
+    padding:20px;margin-bottom:13px}
+  .panel h2{font-family:"Fraunces",serif;font-weight:600;font-size:20px;letter-spacing:-.01em;
+    margin:0 0 4px;color:var(--paper)}
+  .how{font-size:13.5px;color:rgba(248,243,233,.55);margin:0 0 15px}
+  label{display:block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:rgba(248,243,233,.42);margin:0 0 6px}
+  input,select{width:100%;font-family:"IBM Plex Mono",monospace;font-size:14.5px;padding:11px 12px;
+    border:1px solid rgba(248,243,233,.16);border-radius:8px;background:rgba(0,0,0,.22);
+    color:var(--paper);margin-bottom:11px}
+  input:focus-visible,select:focus-visible{outline:2px solid var(--coral);outline-offset:1px;border-color:transparent}
+  input::placeholder{color:rgba(248,243,233,.28)}
+  button{font-family:"Karla",sans-serif;font-size:15px;font-weight:600;border:0;border-radius:8px;
+    padding:13px 18px;cursor:pointer;width:100%;background:var(--coral);color:#2a0f09;transition:filter .14s}
+  button:hover:not(:disabled){filter:brightness(1.08)}
+  button:focus-visible{outline:2px solid var(--paper);outline-offset:2px}
+  button:disabled{background:rgba(248,243,233,.1);color:rgba(248,243,233,.32);cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 1px rgba(248,243,233,.24)}
+  button.ghost:hover:not(:disabled){background:rgba(248,243,233,.06)}
+  .why{font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.65;
+    color:rgba(248,243,233,.5);margin:10px 0 0}
+  .why.warn{color:var(--coral)}
+  .why.ok{color:#4fd3a4}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end;margin-bottom:9px}
+  .row3 input{margin-bottom:0}
+  .mini{font-family:"IBM Plex Mono",monospace;font-size:11px;color:rgba(248,243,233,.45)}
+
+  .plans{margin-top:12px}
+  .plan{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:12px 0;border-top:1px solid rgba(248,243,233,.1);font-family:"IBM Plex Mono",monospace;font-size:12px}
+  .plan b{color:var(--paper);font-weight:600}
+  .plan .st{font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:99px}
+  .st.live{background:rgba(31,156,116,.22);color:#5fdcae}
+  .st.dead{background:rgba(248,243,233,.1);color:rgba(248,243,233,.45)}
+  .st.stuck{background:rgba(255,93,71,.18);color:var(--coral)}
+  .plan button{width:auto;font-size:12px;padding:6px 11px}
+
+  .foot{font-family:"IBM Plex Mono",monospace;font-size:10.5px;line-height:1.75;
+    color:rgba(248,243,233,.32);margin-top:22px;text-align:center}
+  .foot code{color:var(--coral)}
+  a{color:var(--coral)}
+  .hidden{display:none !important}
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+  @media (max-width:560px){
+    .lifetime{text-align:left}
+    .two{grid-template-columns:1fr}
+    .row3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark"><b>Open<i>Till</i></b><span>on Arc</span></div>
+    <div class="net" id="net">Arc Testnet</div>
+  </div>
+
+  <header class="hero">
+    <p class="kicker">Demo · testnet dollars only</p>
+    <h1>One payment, <em>split the second it lands</em>.</h1>
+    <p class="lede">A tip jar, a four-way split, or a monthly subscription — the same till, and the money never rests in the contract. Cancelling is taking back permission, not filling out a form.</p>
+  </header>
+
+  <div class="works">
+    <div class="work">
+      <p class="n">Till</p>
+      <h3>A named pot</h3>
+      <p>Anyone with the link can pay into it. One payee makes it a <em>tip jar</em> — a busker, a church, a newsletter.</p>
+    </div>
+    <div class="work">
+      <p class="n">Split</p>
+      <h3>Several payees</h3>
+      <p>Each gets a fixed share of <em>every</em> payment, in the same transaction. Four bandmates, no one holding the cash.</p>
+    </div>
+    <div class="work">
+      <p class="n">Plan</p>
+      <h3>A repeat charge</h3>
+      <p>Pulls on a schedule against permission you grant. <em>Revoke the permission and it stops</em> — no cancellation flow.</p>
+    </div>
+  </div>
+
+  <!-- SIGNATURE -->
+  <section class="fan-card">
+    <div class="fan-top">
+      <div>
+        <p class="tillname" id="tillName">—</p>
+        <p class="tillmeta" id="tillMeta">Loading…</p>
+      </div>
+      <div class="lifetime">
+        <b id="lifeOut">—</b>
+        <span id="lifeLab">collected</span>
+      </div>
+    </div>
+    <div class="fan-empty" id="fanEmpty">Enter an amount below to see the split</div>
+    <div class="fan hidden" id="fan"></div>
+    <p class="fan-foot" id="fanFoot"></p>
+  </section>
+
+  <section class="panel hidden" id="startPanel">
+    <h2>Getting started</h2>
+    <p class="how">Four steps, about two minutes. Everything here is testnet play money.</p>
+    <ol class="steps" id="steps">
+      <li id="s1"><b>Connect a wallet.</b> It'll offer to add Arc Testnet if you don't have it.</li>
+      <li id="s2"><b>Get some test USDC.</b> The faucet at <a href="https://faucet.circle.com" target="_blank" rel="noopener">faucet.circle.com</a> gives 1 USDC a day — enough to try everything.</li>
+      <li id="s3"><b>Open a till.</b> Name it, add one payee at 100% for a tip jar or a few for a split, and hit open.</li>
+      <li id="s4"><b>Pay into it.</b> Type an amount and watch the fan divide before you sign.</li>
+    </ol>
+    <p class="why" id="startWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Pay in</h2>
+    <p class="how">Goes straight to the payees in one transaction. Nothing pools here first.</p>
+    <label for="payAmt">Amount (USDC)</label>
+    <input id="payAmt" placeholder="25.00" inputmode="decimal" autocomplete="off">
+    <label for="payMemo">Memo — public, optional</label>
+    <input id="payMemo" placeholder="Friday night set" maxlength="60" autocomplete="off">
+    <button id="payBtn" disabled>Connect wallet</button>
+    <p class="why" id="payWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Set up a repeat</h2>
+    <p class="how">Charges on a schedule against an allowance you set. Take the allowance away and it stops — no cancellation flow, no retention offer.</p>
+    <div class="two">
+      <div>
+        <label for="subAmt">Each time (USDC)</label>
+        <input id="subAmt" placeholder="5.00" inputmode="decimal" autocomplete="off">
+      </div>
+      <div>
+        <label for="subPeriod">How often</label>
+        <select id="subPeriod">
+          <option value="3600">Hourly (demo)</option>
+          <option value="86400">Daily</option>
+          <option value="604800">Weekly</option>
+          <option value="2592000" selected>Monthly</option>
+        </select>
+      </div>
+    </div>
+    <button id="subBtn" class="ghost" disabled>Connect wallet</button>
+    <p class="why" id="subWhy">You approve an allowance once. Each charge pulls from it until it runs out or you revoke it.</p>
+    <div class="plans" id="plans"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Open your own till</h2>
+    <p class="how">Name it, list who gets what, and share the link. Payees are fixed at creation — nobody can redirect them later, including you.</p>
+    <label for="ntName">Till name</label>
+    <input id="ntName" placeholder="saturday-market" autocomplete="off">
+    <label>Payees and their share</label>
+    <div id="payeeRows"></div>
+    <div class="two" style="margin-bottom:11px">
+      <button class="ghost" id="addPayee" type="button">Add a payee</button>
+      <button class="ghost" id="evenBtn" type="button">Split evenly</button>
+    </div>
+    <p class="mini" id="bpsTally">—</p>
+    <button id="openBtn" disabled>Connect wallet</button>
+    <p class="why" id="openWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Open a different till</h2>
+    <input id="lookup" placeholder="saturday-market" autocomplete="off">
+    <button class="ghost" id="lookupBtn">Load till</button>
+  </section>
+
+  <p class="foot">
+    Contract <code id="addrOut">—</code><br>
+    <a href="./opentill-guide.html">What is this?</a> · <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">Read the source</a> · testnet funds only
+  </p>
+</div>
+
+<script>
+const NETWORKS = {
+  testnet:{
+    label:"Arc Testnet", chainId:5042002,
+    rpcs:["https://rpc.blockdaemon.testnet.arc.network","https://arc-testnet.drpc.org","https://rpc.quicknode.testnet.arc.network","https://5042002.rpc.thirdweb.com","https://rpc.testnet.arc.network","https://rpc.testnet.arc.io"],
+    explorer:"https://testnet.arcscan.app",
+    till:"0x8be1e1F32EBcD7Cb8a8c844bb4506b6C73181B6E",
+    usdc:"0x3600000000000000000000000000000000000000",
+    live:false
+  },
+  mainnet:{ label:"Arc", chainId:0, rpcs:[], explorer:"", till:"", usdc:"", live:true }
+};
+const ACTIVE="testnet";
+const NET = NETWORKS[new URLSearchParams(location.search).get("net")] || NETWORKS[ACTIVE];
+const TILL=NET.till, USDC=NET.usdc, RPCS=NET.rpcs||[], CHAIN=NET.chainId, EXPLORER=NET.explorer;
+const DEC = 6n;
+
+const ABI=[
+  "function getTill(string) view returns (bool exists,address owner,bool closed,uint256 minPayment,uint256 received,uint32 payments,uint64 createdAt,uint256 payeeCount)",
+  "function getPayees(string) view returns (tuple(address account,uint16 bps)[])",
+  "function previewSplit(string,uint256) view returns (address[],uint256[])",
+  "function minViablePayment(string) view returns (uint256)",
+  "function openTill(string,tuple(address account,uint16 bps)[],uint128)",
+  "function pay(string,uint256,string)",
+  "function openPlan(string,uint128,uint32,uint64,bool) returns (bytes32)",
+  "function charge(bytes32)",
+  "function cancelPlan(bytes32)",
+  "function getPlan(bytes32) view returns (bool exists,string tillName,address payer,uint256 amount,uint32 period,uint64 nextDue,uint64 endsAt,uint32 charges,bool cancelled,bool fundable)",
+  "function planCount() view returns (uint256)",
+  "function planAt(uint256) view returns (bytes32)",
+  "error TillExists()","error NoSuchTill()","error TillClosed()","error NotTillOwner()",
+  "error NoPayees()","error TooManyPayees()","error BadSplit(uint256 totalBps)",
+  "error ZeroAddress()","error ZeroAmount()","error BelowMinimum(uint256 sent,uint256 minimum)",
+  "error NoSuchPlan()","error PlanInactive()","error NotPlanParty()","error TooEarly(uint64 dueAt)",
+  "error PlanEnded()","error DustSplit()"
+];
+const USDC_ABI=[
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)"
+];
+const IFACE=new ethers.Interface(ABI);
+const ARC={chainId:"0x"+CHAIN.toString(16),chainName:NET.label,
+  nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18},rpcUrls:RPCS,blockExplorerUrls:[EXPLORER]};
+
+const $=id=>document.getElementById(id);
+const f=v=>Number(ethers.formatUnits(v,DEC)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const p6=s=>ethers.parseUnits(s,DEC);
+const short=a=>a.slice(0,6)+"…"+a.slice(-4);
+
+const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
+let wp=null;
+const readers=()=>wp?[wp,...pool]:pool;
+async function rd(addr,abi,fn){ let e; for(const p of readers()){ try{ return await fn(new ethers.Contract(addr,abi,p)); }catch(x){e=x;} } throw e; }
+
+let signer=null,me=null,till=null,payees=[],tillName="",allowance=0n,bal=0n,myPlans=[];
+let loadToken=0;
+
+$("addrOut").textContent=TILL||"not deployed";
+$("net").textContent=NET.label;
+
+tillName = new URLSearchParams(location.search).get("till") || "opentill-demo";
+$("lookup").value = tillName;
+
+/* ---------------- read ---------------- */
+async function load(){
+  const token=++loadToken, name=tillName;
+  $("tillName").textContent=name;
+  try{
+    const t=await rd(TILL,ABI,c=>c.getTill(name));
+    if(token!==loadToken) return;
+    if(!t[0]){
+      till=null; payees=[];
+      $("tillMeta").textContent="No till by that name yet — open one below.";
+      $("lifeOut").textContent="—"; $("lifeLab").textContent="not created";
+      $("fanEmpty").textContent="This till doesn't exist yet";
+      $("fanEmpty").classList.remove("hidden"); $("fan").classList.add("hidden");
+      $("fanFoot").textContent="";
+      gate(); renderSteps(); return;
+    }
+    const ps=await rd(TILL,ABI,c=>c.getPayees(name));
+    if(token!==loadToken) return;
+    till={owner:t[1],closed:t[2],min:t[3],received:t[4],payments:Number(t[5]),createdAt:Number(t[6])};
+    payees=ps.map(x=>({account:x[0],bps:Number(x[1])}));
+
+    $("tillMeta").textContent = payees.length===1
+      ? "Tip jar · one payee"+(till.closed?" · closed":"")
+      : payees.length+"-way split"+(till.closed?" · closed":"");
+    $("lifeOut").textContent=f(till.received);
+    $("lifeLab").textContent="collected over "+till.payments+" payment"+(till.payments===1?"":"s");
+    renderFan();
+    if(me) await loadMine();
+    gate(); renderSteps();
+  }catch(e){
+    if(token!==loadToken) return;
+    console.error(e);
+    $("tillMeta").textContent="Couldn't reach the contract — public RPCs throttle under load. Reload in a moment.";
+  }
+}
+
+/* SIGNATURE — a live division, not a static bar. Typing an amount
+   moves the slices, so the split is felt before it's paid. */
+function renderFan(){
+  if(!payees.length){ return; }
+  const raw=$("payAmt").value.trim();
+  let amt=null;
+  try{ if(raw && !isNaN(raw) && Number(raw)>0) amt=p6(raw); }catch(_){}
+
+  const total = amt ?? 0n;
+  let paid=0n;
+  const cuts = payees.map((p,i)=>{
+    const cut = amt===null ? null
+      : (i===payees.length-1 ? total-paid : (total*BigInt(p.bps))/10000n);
+    if(cut!==null) paid+=cut;
+    return cut;
+  });
+
+  $("fanEmpty").classList.add("hidden");
+  $("fan").classList.remove("hidden");
+  $("fan").innerHTML = payees.map((p,i)=>{
+    const pct=(p.bps/100).toFixed(p.bps%100?2:0);
+    const wide=p.bps>=900;
+    return '<div class="slice s'+(i%12)+'" style="flex:0 0 '+(p.bps/100)+'%" title="'+p.account+' — '+pct+'%">'+
+      (wide?'<b>'+(cuts[i]===null?pct+'%':f(cuts[i]))+'</b>':'')+
+      (wide&&cuts[i]!==null?'<i>'+pct+'%</i>':'')+
+    '</div>';
+  }).join("");
+
+  $("fanFoot").textContent = amt===null
+    ? payees.map(p=>(p.bps/100)+"% → "+short(p.account)).join("   ·   ")
+    : payees.map((p,i)=>f(cuts[i])+" → "+short(p.account)).join("   ·   ");
+}
+$("payAmt").addEventListener("input",()=>{ renderFan(); gate(); });
+
+async function loadMine(){
+  try{
+    const n=Number(await rd(TILL,ABI,c=>c.planCount()));
+    const out=[];
+    for(let i=Math.max(0,n-40);i<n;i++){
+      const id=await rd(TILL,ABI,c=>c.planAt(i));
+      const p=await rd(TILL,ABI,c=>c.getPlan(id));
+      if(p[2].toLowerCase()===me.toLowerCase() && p[1]===tillName)
+        out.push({id,amount:p[3],period:Number(p[4]),nextDue:Number(p[5]),charges:Number(p[7]),cancelled:p[8],fundable:p[9]});
+    }
+    myPlans=out; renderPlans();
+  }catch(_){}
+}
+
+function renderPlans(){
+  if(!myPlans.length){ $("plans").innerHTML=""; return; }
+  const now=Math.floor(Date.now()/1000);
+  $("plans").innerHTML = myPlans.map(p=>{
+    const due = p.nextDue<=now;
+    const st = p.cancelled ? '<span class="st dead">Stopped</span>'
+             : !p.fundable ? '<span class="st stuck">Needs allowance</span>'
+             : '<span class="st live">Active</span>';
+    const when = p.cancelled ? "" : (due? "due now" : "next "+new Date(p.nextDue*1000).toLocaleDateString());
+    const acts = p.cancelled ? "" :
+      (due && p.fundable ? '<button data-charge="'+p.id+'">Charge now</button> ' : '')+
+      '<button class="ghost" data-cancel="'+p.id+'">Stop</button>';
+    return '<div class="plan"><span><b>'+f(p.amount)+' USDC</b> · '+everyLabel(p.period)+
+      ' · '+p.charges+' taken '+when+'</span><span style="display:flex;gap:7px;align-items:center">'+st+acts+'</span></div>';
+  }).join("");
+  $("plans").querySelectorAll("[data-charge]").forEach(b=>b.onclick=()=>doCharge(b.dataset.charge,b));
+  $("plans").querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>doCancel(b.dataset.cancel,b));
+}
+const everyLabel=s=> s>=2592000?"monthly" : s>=604800?"weekly" : s>=86400?"daily" : "hourly";
+
+/* The walkthrough only earns its space while something is still undone.
+   Each step reads real state, so it can't tell you to do something you've
+   already done. Once all four are met it disappears for good. */
+function renderSteps(){
+  const has = { wallet: !!signer, funds: bal > 0n, till: !!till, paid: !!till && till.payments > 0 };
+  const all = has.wallet && has.funds && has.till && has.paid;
+  $("startPanel").classList.toggle("hidden", all);
+  if (all) return;
+
+  const order = [["s1",has.wallet],["s2",has.funds],["s3",has.till],["s4",has.paid]];
+  let nextSet = false;
+  for (const [id, done] of order){
+    const el = $(id);
+    el.classList.toggle("done", done);
+    el.classList.toggle("now", !done && !nextSet);
+    if (!done) nextSet = true;
+  }
+
+  $("startWhy").className = "why";
+  if (!has.wallet)      $("startWhy").textContent = "Start by connecting — everything else needs an address to work with.";
+  else if (!has.funds)  $("startWhy").textContent = short(me)+" holds no USDC yet. Gas comes out of the same balance on Arc, so you need a little either way.";
+  else if (!has.till)   $("startWhy").textContent = "No till named \""+tillName+"\" yet. Scroll down and open one — you can be the only payee.";
+  else                  $("startWhy").textContent = "Till is live and nobody has paid into it yet. Try a small amount to see the split land.";
+}
+
+/* ---------------- gating ---------------- */
+function gate(){
+  const ok = !!signer && till && !till.closed;
+  const raw=$("payAmt").value.trim();
+  let amt=null; try{ if(raw&&!isNaN(raw)&&Number(raw)>0) amt=p6(raw); }catch(_){}
+
+  if(!signer){
+    ["payBtn","subBtn","openBtn"].forEach(k=>{$(k).disabled=false;$(k).textContent="Connect wallet";});
+    $("payBtn").onclick=$("subBtn").onclick=$("openBtn").onclick=()=>connect(false);
+    return;
+  }
+  $("openBtn").textContent="Open this till"; $("openBtn").onclick=doOpen; $("openBtn").disabled=false;
+  $("subBtn").textContent="Start the repeat"; $("subBtn").onclick=doSub; $("subBtn").disabled=!ok;
+
+  if(!till){ $("payBtn").disabled=true; $("payBtn").textContent="No till loaded";
+    $("payWhy").textContent="Open a till below, or load one by name."; return; }
+  if(till.closed){ $("payBtn").disabled=true; $("payBtn").textContent="Till is closed";
+    $("payWhy").textContent="The owner stopped this till. It won't take new payments."; return; }
+  if(amt===null){ $("payBtn").disabled=true; $("payBtn").textContent="Enter an amount";
+    $("payWhy").textContent=""; return; }
+  if(amt<till.min){ $("payBtn").disabled=true; $("payBtn").textContent="Too small to split";
+    $("payWhy").textContent="Minimum is "+f(till.min)+" USDC — below that, someone's share rounds to nothing.";
+    $("payWhy").className="why warn"; return; }
+  if(amt>bal){ $("payBtn").disabled=true; $("payBtn").textContent="Not enough USDC";
+    $("payWhy").textContent="You hold "+f(bal)+" USDC. Top up at faucet.circle.com.";
+    $("payWhy").className="why warn"; return; }
+
+  $("payBtn").disabled=false; $("payBtn").onclick=doPay;
+  const needs = allowance<amt;
+  $("payBtn").textContent = needs ? "Approve, then pay "+f(amt) : "Pay "+f(amt)+" USDC";
+  $("payWhy").textContent = needs
+    ? "Two signatures the first time: one to permit the contract to move your USDC, one to pay."
+    : "One signature. The contract is already permitted for this amount.";
+  $("payWhy").className="why";
+}
+
+/* ---------------- payee builder ---------------- */
+function payeeRow(addr,bps){
+  const d=document.createElement("div");
+  d.className="row3";
+  d.innerHTML='<input class="pa" placeholder="0x…" value="'+(addr||"")+'" autocomplete="off">'+
+    '<input class="pb" style="width:92px" placeholder="%" inputmode="decimal" value="'+(bps!=null?bps/100:"")+'">'+
+    '<button class="ghost rm" type="button" style="width:auto;padding:11px 13px">Remove</button>';
+  d.querySelector(".rm").onclick=()=>{ d.remove(); tally(); };
+  d.querySelectorAll("input").forEach(i=>i.addEventListener("input",tally));
+  $("payeeRows").appendChild(d); tally();
+}
+function readRows(){
+  return [...$("payeeRows").querySelectorAll(".row3")].map(r=>({
+    account:r.querySelector(".pa").value.trim(),
+    pct:parseFloat(r.querySelector(".pb").value)||0
+  })).filter(x=>x.account||x.pct);
+}
+function tally(){
+  const rows=readRows();
+  const sum=rows.reduce((a,b)=>a+b.pct,0);
+  const bad=rows.filter(r=>r.account && !ethers.isAddress(r.account)).length;
+  $("bpsTally").textContent = rows.length===0 ? "Add at least one payee."
+    : "Shares total "+sum.toFixed(2)+"% — "+(Math.abs(sum-100)<0.0001?"good to go.":"must be exactly 100%.")+
+      (bad?" "+bad+" address"+(bad>1?"es aren't":" isn't")+" valid.":"");
+}
+$("addPayee").onclick=()=>payeeRow("",null);
+$("evenBtn").onclick=()=>{
+  const rows=[...$("payeeRows").querySelectorAll(".row3")];
+  if(!rows.length) return;
+  const each=Math.floor(10000/rows.length);
+  rows.forEach((r,i)=>{ r.querySelector(".pb").value=((i===rows.length-1? 10000-each*(rows.length-1) : each)/100); });
+  tally();
+};
+payeeRow("",null);
+
+/* ---------------- connect ---------------- */
+$("lookupBtn").onclick=()=>{
+  const v=$("lookup").value.trim(); if(!v) return;
+  tillName=v; history.replaceState(null,"",location.pathname+"?till="+encodeURIComponent(v)); load();
+};
+
+(async function restore(){
+  if(!window.ethereum) return;
+  try{ const a=await window.ethereum.request({method:"eth_accounts"}); if(a&&a.length) await connect(true); }catch(_){}
+})();
+
+async function connect(silent){
+  if(!window.ethereum){
+    if(!silent){ $("payWhy").textContent="No wallet in this browser."; $("payWhy").className="why warn"; }
+    return;
+  }
+  try{
+    if(!silent) await window.ethereum.request({method:"eth_requestAccounts"});
+    const n=await window.ethereum.request({method:"eth_chainId"});
+    if(parseInt(n,16)!==CHAIN){
+      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC.chainId}]}); }
+      catch(e){ if(e.code===4902) await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC]}); else throw e; }
+    }
+    const bp=new ethers.BrowserProvider(window.ethereum);
+    wp=bp; signer=await bp.getSigner(); me=await signer.getAddress();
+    await refreshWallet();
+    await load();
+    renderSteps();
+  }catch(e){
+    if(!silent){ $("payWhy").textContent="Wallet didn't connect: "+(e.shortMessage||e.message); $("payWhy").className="why warn"; }
+  }
+}
+
+async function refreshWallet(){
+  try{
+    bal = await rd(USDC,USDC_ABI,c=>c.balanceOf(me));
+    allowance = await rd(USDC,USDC_ABI,c=>c.allowance(me,TILL));
+  }catch(_){}
+}
+
+/* ---------------- write ---------------- */
+const ERRS={
+  NoSuchTill:"No till by that name exists.",
+  TillExists:"That name is taken. Pick another.",
+  TillClosed:"This till is closed and won't take payments.",
+  BadSplit:"The shares have to add up to exactly 100%.",
+  BelowMinimum:"That's below this till's minimum payment.",
+  DustSplit:"Too small to divide — someone's share would round to zero.",
+  NoPayees:"A till needs at least one payee.",
+  TooManyPayees:"Twelve payees is the limit.",
+  ZeroAddress:"One of those addresses isn't valid.",
+  ZeroAmount:"Amount can't be zero.",
+  TooEarly:"Not due yet.",
+  PlanEnded:"That plan has ended.",
+  PlanInactive:"That plan is already stopped.",
+  NotPlanParty:"Only the payer or the till owner can stop it.",
+  NotTillOwner:"Only the till's owner can do that."
+};
+function why(e){
+  const m=e.shortMessage||e.message||"";
+  if(m.includes("rejected")||e?.code==="ACTION_REJECTED") return "You rejected the signature. Nothing happened.";
+  let r=e?.revert;
+  if(!r){ const d=e?.data||e?.info?.error?.data||e?.error?.data;
+    if(typeof d==="string"){ try{ r=IFACE.parseError(d); }catch(_){} } }
+  if(r&&ERRS[r.name]){
+    if(r.name==="BelowMinimum"&&r.args) return "Minimum for this till is "+f(r.args[1])+" USDC.";
+    if(r.name==="BadSplit"&&r.args) return "Shares add up to "+(Number(r.args[0])/100).toFixed(2)+"% — needs to be exactly 100%.";
+    return ERRS[r.name];
+  }
+  if(r) return "Reverted: "+r.name;
+  if(m.includes("insufficient funds")) return "Not enough USDC to cover it plus gas.";
+  return "Failed: "+m;
+}
+
+async function ensureAllowance(amount,btn){
+  if(allowance>=amount) return;
+  btn.textContent="Approve in wallet…";
+  const u=new ethers.Contract(USDC,USDC_ABI,signer);
+  await (await u.approve(TILL,amount)).wait();
+  allowance=amount;
+}
+
+
+async function doPay(){
+  const b=$("payBtn"); b.disabled=true;
+  try{
+    const amt=p6($("payAmt").value.trim());
+    await ensureAllowance(amt,b);
+    b.textContent="Paying…";
+    const c=new ethers.Contract(TILL,ABI,signer);
+    await (await c.pay(tillName,amt,$("payMemo").value.trim())).wait();
+    $("payAmt").value=""; $("payMemo").value="";
+    await refreshWallet(); await load();
+    $("payWhy").textContent="Paid. Every payee was credited in that same transaction.";
+    $("payWhy").className="why ok";
+  }catch(e){ $("payWhy").textContent=why(e); $("payWhy").className="why warn"; }
+  finally{ b.disabled=false; gate(); }
+}
+
+async function doSub(){
+  const b=$("subBtn"); b.disabled=true;
+  try{
+    const amt=p6($("subAmt").value.trim()||"0");
+    if(amt===0n) throw new Error("Enter an amount");
+    const per=parseInt($("subPeriod").value,10);
+    // Approve a run of charges up front so it doesn't stall next period.
+    await ensureAllowance(amt*12n,b);
+    b.textContent="Starting…";
+    const c=new ethers.Contract(TILL,ABI,signer);
+    await (await c.openPlan(tillName,amt,per,0,true)).wait();
+    $("subAmt").value="";
+    await refreshWallet(); await load();
+    $("subWhy").textContent="Started, and the first charge is taken. Approved enough for about 12 charges — top it up or revoke it any time from your wallet.";
+    $("subWhy").className="why ok";
+  }catch(e){ $("subWhy").textContent=why(e); $("subWhy").className="why warn"; }
+  finally{ b.disabled=false; gate(); }
+}
+
+async function doCharge(id,b){
+  b.disabled=true; const t=b.textContent; b.textContent="…";
+  try{ const c=new ethers.Contract(TILL,ABI,signer); await (await c.charge(id)).wait(); await refreshWallet(); await load(); }
+  catch(e){ $("subWhy").textContent=why(e); $("subWhy").className="why warn"; b.disabled=false; b.textContent=t; }
+}
+async function doCancel(id,b){
+  b.disabled=true; const t=b.textContent; b.textContent="…";
+  try{ const c=new ethers.Contract(TILL,ABI,signer); await (await c.cancelPlan(id)).wait(); await load(); }
+  catch(e){ $("subWhy").textContent=why(e); $("subWhy").className="why warn"; b.disabled=false; b.textContent=t; }
+}
+
+async function doOpen(){
+  const b=$("openBtn"); b.disabled=true;
+  try{
+    const name=$("ntName").value.trim();
+    if(!name) throw new Error("Name it first");
+    const rows=readRows();
+    if(!rows.length) throw new Error("Add at least one payee");
+    for(const r of rows) if(!ethers.isAddress(r.account)) throw new Error("Check the addresses");
+    const bpsList=rows.map(r=>Math.round(r.pct*100));
+    const sum=bpsList.reduce((a,x)=>a+x,0);
+    if(sum!==10000) throw new Error("Shares total "+(sum/100).toFixed(2)+"% — needs 100%");
+    b.textContent="Opening…";
+    const c=new ethers.Contract(TILL,ABI,signer);
+    await (await c.openTill(name, rows.map((r,i)=>[r.account,bpsList[i]]), 0)).wait();
+    tillName=name; $("lookup").value=name;
+    history.replaceState(null,"",location.pathname+"?till="+encodeURIComponent(name));
+    await load();
+    $("openWhy").innerHTML="Open. Share this: <code>"+location.href+"</code>";
+    $("openWhy").className="why ok";
+  }catch(e){ $("openWhy").textContent=why(e); $("openWhy").className="why warn"; }
+  finally{ b.disabled=false; }
+}
+
+renderSteps();
+load();
+</script>
+</body>
+</html>

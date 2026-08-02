@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blindside</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  /* ============================================================
+     An auction catalogue, not a dashboard. Didone display over
+     ledger mono, bone on pitch. The one thing the interface must
+     make unmistakable is WHICH PHASE you're in — bidding and
+     revealing look nothing alike and mean opposite things.
+     ============================================================ */
+  :root{
+    --pitch:#16151a;
+    --char:#1f1e25;
+    --char-2:#2a2831;
+    --bone:#ece7dd;
+    --gold:#d9a441;
+    --seal:#b6414e;
+    --moss:#5f9e6e;
+    --line:rgba(236,231,221,.13);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--pitch);color:var(--bone);font-family:"Archivo",system-ui,sans-serif;
+    font-size:16px;line-height:1.6;padding:26px 16px 76px;display:flex;justify-content:center}
+  .shell{width:100%;max-width:660px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:28px;flex-wrap:wrap}
+  .mark{font-family:"Bodoni Moda",serif;font-weight:600;font-size:27px;letter-spacing:.01em}
+  .mark i{font-style:italic;font-weight:400;color:var(--gold)}
+  .net{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--gold);border:1px solid rgba(217,164,65,.35);padding:4px 9px}
+
+  .hero{margin-bottom:24px}
+  .kicker{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(236,231,221,.38);margin:0 0 12px}
+  h1{font-family:"Bodoni Moda",serif;font-weight:400;font-size:clamp(33px,8vw,50px);line-height:1.04;
+    letter-spacing:-.01em;margin:0 0 10px}
+  h1 i{font-style:italic;color:var(--gold)}
+  .lede{font-size:16px;color:rgba(236,231,221,.62);margin:0;max-width:54ch}
+
+  /* ---------- SIGNATURE: the phase rail ---------- */
+  .lot{background:var(--char);border:1px solid var(--line);padding:22px;margin:22px 0 13px}
+  .lot-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .lotno{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold);margin:0 0 5px}
+  .lottitle{font-family:"Bodoni Moda",serif;font-weight:400;font-size:28px;line-height:1.12;margin:0;
+    overflow-wrap:anywhere}
+  .reserve{font-family:"Space Mono",monospace;font-size:11px;color:rgba(236,231,221,.45);margin:6px 0 0}
+  .lot-right{text-align:right;font-family:"Space Mono",monospace;font-size:11px;color:rgba(236,231,221,.45)}
+
+  .rail{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;margin:0 0 8px}
+  .ph{background:var(--char-2);padding:11px 12px;position:relative;opacity:.42}
+  .ph.on{opacity:1;background:var(--char-2)}
+  .ph.done{opacity:.6}
+  .ph .pn{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+    color:rgba(236,231,221,.45);margin:0 0 3px}
+  .ph .pt{font-family:"Bodoni Moda",serif;font-size:17px;line-height:1.15;margin:0}
+  .ph.on .pt{color:var(--gold)}
+  .ph.on .pn{color:var(--gold)}
+  .ph::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:transparent}
+  .ph.on::after{background:var(--gold)}
+  .ph.done::after{background:rgba(236,231,221,.2)}
+  .clockline{font-family:"Space Mono",monospace;font-size:12.5px;color:var(--bone);margin:0 0 18px}
+  .clockline b{color:var(--gold);font-variant-numeric:tabular-nums}
+  .clockline.rev b{color:var(--seal)}
+
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);margin-bottom:18px}
+  .facts div{background:var(--char);padding:12px 10px;text-align:center}
+  .facts dt{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+    color:rgba(236,231,221,.38);margin:0 0 4px}
+  .facts dd{margin:0;font-family:"Space Mono",monospace;font-size:14px;color:var(--bone)}
+  .facts dd.hid{color:rgba(236,231,221,.3);font-size:12px}
+
+  /* the sealed envelope — your own bid, visible only to you */
+  .envelope{border:1px dashed rgba(217,164,65,.45);background:rgba(217,164,65,.06);
+    padding:15px;margin:0 0 16px}
+  .envelope .el{font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--gold);margin:0 0 7px}
+  .envelope .ev{font-family:"Bodoni Moda",serif;font-size:26px;margin:0}
+  .envelope p{font-family:"Space Mono",monospace;font-size:10.5px;line-height:1.6;
+    color:rgba(236,231,221,.5);margin:8px 0 0}
+  .envelope.sealed{border-color:rgba(182,65,78,.5);background:rgba(182,65,78,.07)}
+  .envelope.sealed .el{color:var(--seal)}
+  .envelope.won{border-color:rgba(95,158,110,.5);background:rgba(95,158,110,.08)}
+  .envelope.won .el{color:var(--moss)}
+
+  .acts{display:flex;gap:9px;flex-wrap:wrap}
+  .acts button{flex:1;min-width:150px;width:auto}
+
+  .panel{background:var(--char);border:1px solid var(--line);padding:20px;margin-bottom:13px}
+  .panel h2{font-family:"Bodoni Moda",serif;font-weight:400;font-size:23px;margin:0 0 4px}
+  .how{font-size:13.5px;color:rgba(236,231,221,.55);margin:0 0 15px}
+  label{display:block;font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.13em;
+    text-transform:uppercase;color:rgba(236,231,221,.4);margin:0 0 6px}
+  input,select{width:100%;font-family:"Space Mono",monospace;font-size:14px;padding:11px 12px;
+    border:1px solid rgba(236,231,221,.15);background:rgba(0,0,0,.3);color:var(--bone);margin-bottom:11px}
+  input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:1px;border-color:transparent}
+  input::placeholder{color:rgba(236,231,221,.25)}
+  button{font-family:"Archivo",sans-serif;font-size:14.5px;font-weight:600;border:0;
+    padding:12px 18px;cursor:pointer;width:100%;background:var(--gold);color:#231a08;transition:filter .14s}
+  button:hover:not(:disabled){filter:brightness(1.09)}
+  button:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
+  button:disabled{background:rgba(236,231,221,.08);color:rgba(236,231,221,.3);cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--bone);box-shadow:inset 0 0 0 1px rgba(236,231,221,.22)}
+  button.ghost:hover:not(:disabled){background:rgba(236,231,221,.05)}
+  button.seal{background:var(--seal);color:#fff}
+  .why{font-family:"Space Mono",monospace;font-size:11px;line-height:1.65;color:rgba(236,231,221,.48);margin:10px 0 0}
+  .why.warn{color:var(--seal)}
+  .why.ok{color:var(--moss)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  .list{margin-top:4px}
+  .item{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:12px 0;border-top:1px solid var(--line);font-family:"Space Mono",monospace;font-size:12px;cursor:pointer}
+  .item:hover{color:var(--gold)}
+  .item b{color:var(--bone);font-weight:400}
+  .tag{font-size:9px;letter-spacing:.11em;text-transform:uppercase;padding:2px 7px}
+  .tag.bid{background:rgba(217,164,65,.16);color:var(--gold)}
+  .tag.rev{background:rgba(182,65,78,.16);color:var(--seal)}
+  .tag.set{background:rgba(236,231,221,.08);color:rgba(236,231,221,.42)}
+
+  .foot{font-family:"Space Mono",monospace;font-size:10.5px;line-height:1.75;
+    color:rgba(236,231,221,.3);margin-top:22px;text-align:center}
+  .foot code{color:var(--gold)}
+  a{color:var(--gold)}
+  .hidden{display:none !important}
+  @media (max-width:560px){ .rail{grid-template-columns:1fr} .facts{grid-template-columns:1fr}
+    .two{grid-template-columns:1fr} .lot-right{text-align:left} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="mark">Blind<i>side</i></div>
+    <div class="net" id="net">Arc Testnet</div>
+  </div>
+
+  <header class="hero">
+    <p class="kicker">Sealed bids · testnet dollars only</p>
+    <h1>Nobody sees your bid <i>until everyone's is in</i>.</h1>
+    <p class="lede">On an ordinary chain every bid is public the moment it's sent, so the last bidder always wins by a penny. Here you submit a hash, and prove what it said only after bidding has closed.</p>
+  </header>
+
+  <!-- SIGNATURE -->
+  <section class="lot" id="lot">
+    <div class="lot-head">
+      <div>
+        <p class="lotno" id="lotNo">No lot loaded</p>
+        <h2 class="lottitle" id="lotTitle">—</h2>
+        <p class="reserve" id="lotReserve"></p>
+      </div>
+      <div class="lot-right" id="lotSeller"></div>
+    </div>
+
+    <div class="rail">
+      <div class="ph" id="ph0"><p class="pn">Phase one</p><p class="pt">Bidding</p></div>
+      <div class="ph" id="ph1"><p class="pn">Phase two</p><p class="pt">Revealing</p></div>
+      <div class="ph" id="ph2"><p class="pn">Phase three</p><p class="pt">Settled</p></div>
+    </div>
+    <p class="clockline" id="clock">Open a lot below, or load one by number.</p>
+
+    <dl class="facts">
+      <div><dt>Sealed bids in</dt><dd id="fCommits">—</dd></div>
+      <div><dt>Revealed</dt><dd id="fReveals">—</dd></div>
+      <div><dt>Leading bid</dt><dd id="fTop">—</dd></div>
+    </dl>
+
+    <div class="envelope hidden" id="env">
+      <p class="el" id="envLab">Your sealed bid</p>
+      <p class="ev" id="envVal">—</p>
+      <p id="envNote"></p>
+    </div>
+
+    <div class="acts" id="acts"></div>
+    <p class="why" id="lotWhy"></p>
+  </section>
+
+  <section class="panel" id="bidPanel">
+    <h2>Place a sealed bid</h2>
+    <p class="how">Your bid is hashed in the browser — the chain never sees the number until you reveal it.</p>
+    <div class="two">
+      <div>
+        <label for="bAmt">Your bid (USDC)</label>
+        <input id="bAmt" placeholder="500.00" inputmode="decimal" autocomplete="off">
+      </div>
+      <div>
+        <label for="bDep">Deposit to lock</label>
+        <input id="bDep" placeholder="500.00" inputmode="decimal" autocomplete="off">
+      </div>
+    </div>
+    <p class="why" id="bidHint">Deposit at least your bid. Deposit <b>more</b> and the amount tells watchers nothing — that's what keeps the bid sealed.</p>
+    <button id="commitBtn">Connect wallet</button>
+    <p class="why" id="bidWhy"></p>
+  </section>
+
+  <section class="panel">
+    <h2>List something</h2>
+    <p class="how">Anyone can open a lot. You can't bid on your own, can't see bids early, and can't pick the winner.</p>
+    <label for="nTitle">What's for sale</label>
+    <input id="nTitle" placeholder="Ridgid 300 threader, works" maxlength="80" autocomplete="off">
+    <div class="two">
+      <div>
+        <label for="nReserve">Reserve (USDC, 0 for none)</label>
+        <input id="nReserve" placeholder="0" inputmode="decimal" autocomplete="off">
+      </div>
+      <div>
+        <label for="nPhases">Phase length</label>
+        <select id="nPhases">
+          <option value="300">5 minutes each (demo)</option>
+          <option value="3600">1 hour each</option>
+          <option value="86400" selected>1 day each</option>
+          <option value="259200">3 days each</option>
+        </select>
+      </div>
+    </div>
+    <button id="openBtn" class="ghost">Connect wallet</button>
+    <p class="why" id="openWhy">Bidding runs for one phase, then revealing for another. Both have to close before anyone gets paid.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Recent lots</h2>
+    <div class="list" id="lots"><p class="why">Loading…</p></div>
+  </section>
+
+  <p class="foot">
+    Contract <code id="addrOut">—</code><br>
+    <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">Read the source</a> · unaudited · testnet funds only
+  </p>
+</div>
+
+<script>
+const NETWORKS={
+  testnet:{ label:"Arc Testnet", chainId:5042002,
+    rpcs:["https://rpc.blockdaemon.testnet.arc.network","https://arc-testnet.drpc.org","https://rpc.quicknode.testnet.arc.network","https://5042002.rpc.thirdweb.com","https://rpc.testnet.arc.network","https://rpc.testnet.arc.io"],
+    explorer:"https://testnet.arcscan.app",
+    auction:"0x2509FC4E05BF42c3E7B739f2B19d62fBD2b2f5e2",
+    usdc:"0x3600000000000000000000000000000000000000" },
+  mainnet:{ label:"Arc", chainId:0, rpcs:[], explorer:"", auction:"", usdc:"" }
+};
+const ACTIVE="testnet";
+const NET=NETWORKS[new URLSearchParams(location.search).get("net")]||NETWORKS[ACTIVE];
+const AU=NET.auction, USDC=NET.usdc, RPCS=NET.rpcs||[], CHAIN=NET.chainId, EXPLORER=NET.explorer;
+const DEC=6n;
+
+const ABI=[
+  "function getLot(uint256) view returns (tuple(bool exists,address seller,string title,uint256 reserve,uint64 commitEnd,uint64 revealEnd,uint32 commits,uint32 reveals,uint256 topBid,address topBidder,bool settled,bool cancelled,uint8 phase))",
+  "function getBid(uint256,address) view returns (bool committed,uint256 deposit,bool revealed,uint256 revealedBid,bool claimed,uint256 claimable)",
+  "function hashBid(uint256,bytes32,address) pure returns (bytes32)",
+  "function openLot(string,uint128,uint64,uint64) returns (uint256)",
+  "function commit(uint256,bytes32,uint256)",
+  "function reveal(uint256,uint256,bytes32)",
+  "function settle(uint256)",
+  "function claim(uint256)",
+  "function nextId() view returns (uint256)",
+  "error AlreadyCommitted()","error AlreadyRevealed()","error AlreadySettled()","error BadReveal()",
+  "error BelowReserve(uint256 bid,uint256 reserve)","error BidOverDeposit(uint256 bid,uint256 deposit)",
+  "error BiddingClosed()","error BiddingOpen()","error HasBids()","error NoCommitment()",
+  "error NoSuchLot()","error NotSeller()","error NotSettled()","error NothingToClaim()",
+  "error PhaseTooShort()","error RevealClosed()","error RevealOpen()","error SellerCannotBid()",
+  "error ZeroAddress()","error ZeroAmount()","error Reentrant()"
+];
+const USDC_ABI=[
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)"
+];
+const IFACE=new ethers.Interface(ABI);
+const ARC={chainId:"0x"+CHAIN.toString(16),chainName:NET.label,
+  nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18},rpcUrls:RPCS,blockExplorerUrls:[EXPLORER]};
+
+const $=id=>document.getElementById(id);
+const f=v=>Number(ethers.formatUnits(v,DEC)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const p6=s=>ethers.parseUnits(s,DEC);
+const shortA=a=>a.slice(0,6)+"…"+a.slice(-4);
+const nowS=()=>Math.floor(Date.now()/1000);
+function cdown(s){
+  if(s<=0) return "0:00";
+  const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),x=s%60;
+  if(d) return d+"d "+h+"h";
+  if(h) return h+"h "+String(m).padStart(2,"0")+"m";
+  return m+":"+String(x).padStart(2,"0");
+}
+
+const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
+let wp=null;
+const readers=()=>wp?[wp,...pool]:pool;
+async function rd(addr,abi,fn){ let e; for(const p of readers()){ try{ return await fn(new ethers.Contract(addr,abi,p)); }catch(x){e=x;} } throw e; }
+
+let signer=null,me=null,lot=null,myBid=null,lotId=0,allowance=0n,bal=0n,tick=null,loadToken=0;
+
+$("addrOut").textContent=AU||"not deployed";
+$("net").textContent=NET.label;
+lotId=parseInt(new URLSearchParams(location.search).get("lot")||"0",10)||0;
+
+/* ============================================================
+   SALT — the one thing that can lose a bidder their money.
+   Derived from a wallet signature over a fixed message, so the
+   SAME wallet always regenerates the SAME salt for the same lot.
+   No file to keep, no note to lose, works on any device. A local
+   copy is kept too, purely so the reveal doesn't need a second
+   signature — but the signature is the source of truth.
+   ============================================================ */
+const saltMsg = id => "Blindside sealed bid\nLot #"+id+"\nContract "+AU+"\n\nSigning this derives the secret that seals your bid. Same wallet, same lot, same secret — sign again any time to recover it.";
+
+async function deriveSalt(id){
+  const key = "blindside:"+AU+":"+id+":"+me;
+  try{ const cached = localStorage.getItem(key); if(cached) return cached; }catch(_){}
+  const sig = await signer.signMessage(saltMsg(id));
+  const salt = ethers.keccak256(sig);
+  try{ localStorage.setItem(key, salt); }catch(_){}
+  return salt;
+}
+function cachedBidAmount(id){
+  try{ return localStorage.getItem("blindside:amt:"+AU+":"+id+":"+me); }catch(_){ return null; }
+}
+function rememberBidAmount(id,amt){
+  try{ localStorage.setItem("blindside:amt:"+AU+":"+id+":"+me, amt.toString()); }catch(_){}
+}
+
+/* ---------------- read ---------------- */
+async function load(){
+  if(!lotId) { renderLots(); return; }
+  const token=++loadToken;
+  try{
+    const v=await rd(AU,ABI,c=>c.getLot(lotId));
+    if(token!==loadToken) return;
+    if(!v.exists){
+      lot=null;
+      $("lotNo").textContent="Lot #"+lotId+" doesn't exist";
+      $("lotTitle").textContent="—";
+      $("clock").textContent="Nothing at that number. The first lot is #1.";
+      $("acts").innerHTML=""; $("env").classList.add("hidden");
+      return;
+    }
+    lot={seller:v.seller,title:v.title,reserve:v.reserve,commitEnd:Number(v.commitEnd),
+         revealEnd:Number(v.revealEnd),commits:Number(v.commits),reveals:Number(v.reveals),
+         topBid:v.topBid,topBidder:v.topBidder,settled:v.settled,cancelled:v.cancelled};
+    if(me){
+      const b=await rd(AU,ABI,c=>c.getBid(lotId,me));
+      myBid={committed:b[0],deposit:b[1],revealed:b[2],revealedBid:b[3],claimed:b[4],claimable:b[5]};
+    } else myBid=null;
+    render();
+    if(!tick) tick=setInterval(renderClock,1000);
+  }catch(e){
+    if(token!==loadToken) return;
+    console.error(e);
+    $("clock").textContent="Couldn't reach the contract — public RPCs throttle under load. Reload in a moment.";
+  }
+}
+
+function phaseNow(){
+  if(!lot) return 0;
+  if(lot.settled||lot.cancelled) return 2;
+  const t=nowS();
+  if(t<lot.commitEnd) return 0;
+  if(t<lot.revealEnd) return 1;
+  return 2;
+}
+
+function renderClock(){
+  if(!lot) return;
+  const p=phaseNow(), t=nowS();
+  [0,1,2].forEach(i=>{
+    const el=$("ph"+i);
+    el.className="ph"+(i===p?" on":i<p?" done":"");
+  });
+  if(lot.cancelled){ $("clock").textContent="Withdrawn by the seller before any bids came in."; return; }
+  if(lot.settled){
+    $("clock").innerHTML = lot.topBidder!==ethers.ZeroAddress
+      ? "Sold to "+shortA(lot.topBidder)+" for <b>"+f(lot.topBid)+" USDC</b>."
+      : "Closed with no sale.";
+    return;
+  }
+  if(p===0){
+    $("clock").className="clockline";
+    $("clock").innerHTML="Bidding closes in <b>"+cdown(lot.commitEnd-t)+"</b> — then bids are revealed. Nobody, including the seller, can see any bid before that.";
+  } else if(p===1){
+    $("clock").className="clockline rev";
+    $("clock").innerHTML="Reveal window closes in <b>"+cdown(lot.revealEnd-t)+"</b>. A bid not revealed by then doesn't count — but the deposit still comes back.";
+  } else {
+    $("clock").className="clockline";
+    $("clock").innerHTML="Both windows are closed. Anyone can settle it now.";
+  }
+}
+
+function render(){
+  const p=phaseNow();
+  $("lotNo").textContent="Lot #"+lotId;
+  $("lotTitle").textContent=lot.title||"Untitled lot";
+  $("lotReserve").textContent = lot.reserve>0n ? "Reserve "+f(lot.reserve)+" USDC" : "No reserve";
+  const isSeller = me && lot.seller.toLowerCase()===me.toLowerCase();
+  $("lotSeller").innerHTML = (isSeller?"Your lot":"Seller "+shortA(lot.seller));
+
+  $("fCommits").textContent=lot.commits;
+  $("fReveals").textContent = p===0 ? "—" : lot.reveals;
+  if(p===0){ $("fTop").className="hid"; $("fTop").textContent="sealed"; }
+  else { $("fTop").className=""; $("fTop").textContent = lot.topBid>0n ? f(lot.topBid) : "none valid"; }
+
+  // your own envelope
+  const env=$("env");
+  if(myBid && myBid.committed){
+    env.classList.remove("hidden","sealed","won");
+    const cached=cachedBidAmount(lotId);
+    if(myBid.revealed){
+      const won = lot.topBidder && me && lot.topBidder.toLowerCase()===me.toLowerCase();
+      env.classList.add(won?"won":"");
+      $("envLab").textContent = won ? "Your bid — leading" : "Your revealed bid";
+      $("envVal").textContent = f(myBid.revealedBid)+" USDC";
+      $("envNote").textContent = won
+        ? "You're ahead. If nobody outbids you before the reveal window closes, the lot is yours at this price."
+        : "Revealed and recorded. "+(lot.topBid>myBid.revealedBid?"Currently outbid.":"");
+    } else {
+      env.classList.add("sealed");
+      $("envLab").textContent="Your sealed bid";
+      $("envVal").textContent = cached ? f(BigInt(cached))+" USDC" : "hidden";
+      $("envNote").textContent = cached
+        ? "Only you can see this — it's stored in your browser and nowhere else. On chain there's just a hash and your "+f(myBid.deposit)+" USDC deposit."
+        : "You committed "+f(myBid.deposit)+" USDC on another device. Enter the exact bid amount when you reveal — your wallet regenerates the secret automatically.";
+    }
+  } else env.classList.add("hidden");
+
+  // actions
+  let a="";
+  const committed = myBid && myBid.committed;
+  if(p===1 && committed && !myBid.revealed) a+='<button id="revBtn" class="seal">Reveal my bid</button>';
+  if(p===2 && !lot.settled && !lot.cancelled) a+='<button id="setBtn">Settle the auction</button>';
+  if((lot.settled||lot.cancelled) && myBid && myBid.claimable>0n) a+='<button id="clmBtn">Claim '+f(myBid.claimable)+' USDC</button>';
+  if(p===0 && isSeller && lot.commits===0 && !lot.cancelled) a+='<button id="canBtn" class="ghost">Withdraw the lot</button>';
+  $("acts").innerHTML=a;
+  if($("revBtn")) $("revBtn").onclick=doReveal;
+  if($("setBtn")) $("setBtn").onclick=doSettle;
+  if($("clmBtn")) $("clmBtn").onclick=doClaim;
+  if($("canBtn")) $("canBtn").onclick=doCancelLot;
+
+  // bidding panel visibility
+  const canBid = p===0 && !isSeller && !(myBid&&myBid.committed) && !lot.cancelled;
+  $("bidPanel").classList.toggle("hidden", !canBid);
+
+  $("lotWhy").className="why";
+  if(!me) $("lotWhy").textContent="Connect a wallet to bid, reveal or claim.";
+  else if(isSeller && p===0) $("lotWhy").textContent="You can't bid on your own lot, and you won't see any bid until the reveal window opens.";
+  else if(committed && p===0) $("lotWhy").textContent="Your bid is in. Come back after bidding closes to reveal it — if you don't reveal, it can't win, though your deposit still comes back.";
+  else if(committed && p===1 && !myBid.revealed) $("lotWhy").textContent="Reveal now. Miss the window and your bid is void.";
+  else if(myBid && myBid.claimed) $("lotWhy").textContent="You've taken back everything owed to you on this lot.";
+  else $("lotWhy").textContent="";
+
+  renderClock();
+  renderLots();
+}
+
+async function renderLots(){
+  try{
+    const n=Number(await rd(AU,ABI,c=>c.nextId()));
+    const ids=[]; for(let i=n-1;i>=1&&ids.length<12;i--) ids.push(i);
+    if(!ids.length){ $("lots").innerHTML='<p class="why">Nothing listed yet.</p>'; return; }
+    const rows=[];
+    for(const id of ids){
+      const v=await rd(AU,ABI,c=>c.getLot(id));
+      if(!v.exists) continue;
+      const t=nowS();
+      const ph = v.settled||v.cancelled ? 2 : t<Number(v.commitEnd)?0 : t<Number(v.revealEnd)?1 : 2;
+      const tag = ph===0?'<span class="tag bid">Bidding</span>'
+                : ph===1?'<span class="tag rev">Revealing</span>'
+                : '<span class="tag set">'+(v.settled?"Settled":"Ready to settle")+'</span>';
+      rows.push('<div class="item" data-id="'+id+'"><span><b>#'+id+'</b> · '+
+        (v.title||"Untitled")+' · '+v.commits+' sealed</span>'+tag+'</div>');
+    }
+    $("lots").innerHTML=rows.join("")||'<p class="why">Nothing listed yet.</p>';
+    $("lots").querySelectorAll(".item").forEach(el=>el.onclick=()=>openLot(Number(el.dataset.id)));
+  }catch(_){}
+}
+
+function openLot(id){
+  lotId=id;
+  history.replaceState(null,"",location.pathname+"?lot="+id);
+  load(); window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ---------------- connect ---------------- */
+(async function restore(){
+  if(!window.ethereum) return;
+  try{ const a=await window.ethereum.request({method:"eth_accounts"}); if(a&&a.length) await connect(true); }catch(_){}
+})();
+$("commitBtn").onclick=()=>signer?doCommit():connect(false);
+$("openBtn").onclick=()=>signer?doOpenLot():connect(false);
+
+async function connect(silent){
+  if(!window.ethereum){
+    if(!silent){ $("bidWhy").textContent="No wallet in this browser."; $("bidWhy").className="why warn"; }
+    return;
+  }
+  try{
+    if(!silent) await window.ethereum.request({method:"eth_requestAccounts"});
+    const n=await window.ethereum.request({method:"eth_chainId"});
+    if(parseInt(n,16)!==CHAIN){
+      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC.chainId}]}); }
+      catch(e){ if(e.code===4902) await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC]}); else throw e; }
+    }
+    const bp=new ethers.BrowserProvider(window.ethereum);
+    wp=bp; signer=await bp.getSigner(); me=await signer.getAddress();
+    $("commitBtn").textContent="Seal and submit"; $("openBtn").textContent="List it";
+    try{ bal=await rd(USDC,USDC_ABI,c=>c.balanceOf(me));
+         allowance=await rd(USDC,USDC_ABI,c=>c.allowance(me,AU)); }catch(_){}
+    await load();
+  }catch(e){
+    if(!silent){ $("bidWhy").textContent="Wallet didn't connect: "+(e.shortMessage||e.message); $("bidWhy").className="why warn"; }
+  }
+}
+
+/* ---------------- write ---------------- */
+const ERRS={
+  AlreadyCommitted:"You've already bid on this lot. One sealed bid each.",
+  AlreadyRevealed:"You already revealed this one.",
+  AlreadySettled:"This lot is already closed.",
+  BadReveal:"That doesn't match what you committed. Check the bid amount is exactly what you entered.",
+  BelowReserve:"That's under the seller's reserve.",
+  BidOverDeposit:"Your bid is more than you deposited, so it can't be honoured. Your deposit comes back.",
+  BiddingClosed:"Bidding has closed on this lot.",
+  BiddingOpen:"Bidding is still open — reveals come after.",
+  HasBids:"Bids are already in, so the lot can't be withdrawn.",
+  NoCommitment:"You didn't bid on this lot.",
+  NoSuchLot:"No lot at that number.",
+  NotSeller:"Only the seller can do that.",
+  NotSettled:"The lot has to be settled first.",
+  NothingToClaim:"Nothing left to claim here.",
+  PhaseTooShort:"Each phase has to run at least five minutes.",
+  RevealClosed:"The reveal window has closed.",
+  RevealOpen:"Reveals are still open — wait for the window to close.",
+  SellerCannotBid:"You can't bid on your own lot.",
+  ZeroAmount:"Amount can't be zero."
+};
+function why(e){
+  const m=e.shortMessage||e.message||"";
+  if(m.includes("rejected")||e?.code==="ACTION_REJECTED") return "You rejected the signature. Nothing happened.";
+  let r=e?.revert;
+  if(!r){ const d=e?.data||e?.info?.error?.data||e?.error?.data;
+    if(typeof d==="string"){ try{ r=IFACE.parseError(d); }catch(_){} } }
+  if(r&&ERRS[r.name]){
+    if(r.name==="BelowReserve"&&r.args) return "The reserve is "+f(r.args[1])+" USDC — your bid is under it.";
+    if(r.name==="BidOverDeposit"&&r.args) return "You bid "+f(r.args[0])+" but only deposited "+f(r.args[1])+". The bid can't be honoured; claim your deposit back after settlement.";
+    return ERRS[r.name];
+  }
+  if(r) return "Reverted: "+r.name;
+  if(m.includes("insufficient funds")) return "Not enough USDC to cover it plus gas.";
+  return "Failed: "+m;
+}
+
+async function doCommit(){
+  const b=$("commitBtn"); b.disabled=true;
+  try{
+    const amtS=$("bAmt").value.trim(), depS=$("bDep").value.trim()||amtS;
+    if(!amtS) throw new Error("Enter a bid");
+    const amt=p6(amtS), dep=p6(depS);
+    if(dep<amt) throw new Error("Deposit has to be at least your bid");
+    if(dep>bal) throw new Error("You hold "+f(bal)+" USDC");
+
+    b.textContent="Sign to seal…";
+    const salt=await deriveSalt(lotId);
+    const blob=ethers.solidityPackedKeccak256(["uint256","bytes32","address"],[amt,salt,me]);
+
+    if(allowance<dep){
+      b.textContent="Approve in wallet…";
+      const u=new ethers.Contract(USDC,USDC_ABI,signer);
+      await (await u.approve(AU,dep)).wait(); allowance=dep;
+    }
+    b.textContent="Submitting…";
+    const c=new ethers.Contract(AU,ABI,signer);
+    await (await c.commit(lotId,blob,dep)).wait();
+    rememberBidAmount(lotId,amt);
+    $("bAmt").value=""; $("bDep").value="";
+    try{ bal=await rd(USDC,USDC_ABI,c2=>c2.balanceOf(me)); }catch(_){}
+    await load();
+    $("bidWhy").textContent="Sealed. Come back when bidding closes to reveal it.";
+    $("bidWhy").className="why ok";
+  }catch(e){ $("bidWhy").textContent=why(e); $("bidWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent=signer?"Seal and submit":"Connect wallet"; }
+}
+
+async function doReveal(){
+  const b=$("revBtn"); b.disabled=true;
+  try{
+    let amt;
+    const cached=cachedBidAmount(lotId);
+    if(cached) amt=BigInt(cached);
+    else{
+      const typed=prompt("What exactly did you bid on lot #"+lotId+"? (USDC, e.g. 500.00)");
+      if(!typed) throw new Error("Cancelled");
+      amt=p6(typed.trim());
+    }
+    b.textContent="Sign to unseal…";
+    const salt=await deriveSalt(lotId);
+    b.textContent="Revealing…";
+    const c=new ethers.Contract(AU,ABI,signer);
+    await (await c.reveal(lotId,amt,salt)).wait();
+    rememberBidAmount(lotId,amt);
+    await load();
+    $("lotWhy").textContent="Revealed. It counts now.";
+    $("lotWhy").className="why ok";
+  }catch(e){ $("lotWhy").textContent=why(e); $("lotWhy").className="why warn";
+    b.disabled=false; b.textContent="Reveal my bid"; }
+}
+
+async function doSettle(){
+  const b=$("setBtn"); b.disabled=true; b.textContent="Settling…";
+  try{
+    const c=new ethers.Contract(AU,ABI,signer);
+    await (await c.settle(lotId)).wait();
+    await load();
+  }catch(e){ $("lotWhy").textContent=why(e); $("lotWhy").className="why warn";
+    b.disabled=false; b.textContent="Settle the auction"; }
+}
+
+async function doClaim(){
+  const b=$("clmBtn"); b.disabled=true; b.textContent="Claiming…";
+  try{
+    const c=new ethers.Contract(AU,ABI,signer);
+    await (await c.claim(lotId)).wait();
+    try{ bal=await rd(USDC,USDC_ABI,c2=>c2.balanceOf(me)); }catch(_){}
+    await load();
+    $("lotWhy").textContent="Claimed."; $("lotWhy").className="why ok";
+  }catch(e){ $("lotWhy").textContent=why(e); $("lotWhy").className="why warn"; b.disabled=false; }
+}
+
+async function doCancelLot(){
+  const b=$("canBtn"); b.disabled=true; b.textContent="Withdrawing…";
+  try{
+    const c=new ethers.Contract(AU,ABI,signer);
+    await (await c.cancelLot(lotId)).wait();
+    await load();
+  }catch(e){ $("lotWhy").textContent=why(e); $("lotWhy").className="why warn";
+    b.disabled=false; b.textContent="Withdraw the lot"; }
+}
+
+async function doOpenLot(){
+  const b=$("openBtn"); b.disabled=true;
+  try{
+    const title=$("nTitle").value.trim();
+    if(!title) throw new Error("Say what's for sale");
+    const res=$("nReserve").value.trim()||"0";
+    const ph=parseInt($("nPhases").value,10);
+    b.textContent="Listing…";
+    const c=new ethers.Contract(AU,ABI,signer);
+    const tx=await c.openLot(title,p6(res),ph,ph);
+    const rc=await tx.wait();
+    let id=0;
+    for(const lg of rc.logs){
+      try{ const p=IFACE.parseLog(lg); if(p&&p.name==="LotOpened"){ id=Number(p.args[0]); break; } }catch(_){}
+    }
+    $("nTitle").value="";
+    if(id) openLot(id);
+    $("openWhy").textContent="Listed. Share the link and bids stay sealed until bidding closes.";
+    $("openWhy").className="why ok";
+  }catch(e){ $("openWhy").textContent=why(e); $("openWhy").className="why warn"; }
+  finally{ b.disabled=false; b.textContent=signer?"List it":"Connect wallet"; }
+}
+
+load();
+</script>
+</body>
+</html>
