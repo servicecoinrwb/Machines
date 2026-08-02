@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Four machines for moving money</title>
-<meta name="description" content="OpenTill, Tidewater, Blindside and Bellwether — small stablecoin contracts on Arc that each do one thing conventional finance handles badly.">
+<title>Five machines for moving money</title>
+<meta name="description" content="OpenTill, Tidewater, Blindside, Bellwether and Reckoning — small stablecoin contracts on Arc that each do one thing conventional finance handles badly.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Public+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -28,6 +28,7 @@
     --aqua:#5ad6bd;    /* Tidewater */
     --gold:#d9a441;    /* Blindside */
     --moss:#7aa870;    /* Bellwether */
+    --chalk:#8fd6a8;   /* Reckoning  */
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -96,6 +97,17 @@
     font-family:"JetBrains Mono",monospace;font-size:10px;color:#fff}
   .o-y{background:#1d6f56} .o-n{background:#a83232}
 
+  /* reckoning: a diverging balance rail */
+  .rail{padding:2px 0}
+  .rrow{display:grid;grid-template-columns:34px 1fr 62px;gap:8px;align-items:center;padding:2px 0}
+  .rrow span:first-child{font-family:"JetBrains Mono",monospace;font-size:9.5px;color:rgba(236,234,228,.45)}
+  .rtrack{position:relative;height:11px}
+  .rtrack::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:rgba(236,234,228,.22)}
+  .rbar{position:absolute;top:1px;height:9px;border-radius:2px}
+  .rbar.p{left:50%;background:#8fd6a8} .rbar.n{right:50%;background:#e8a3a3}
+  .rval{font-family:"JetBrains Mono",monospace;font-size:9.5px;text-align:right}
+  .rval.p{color:#8fd6a8} .rval.n{color:#e8a3a3}
+
   .m-live{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--dim);margin:0 0 15px}
   .m-live b{color:var(--bone);font-weight:500}
 
@@ -131,7 +143,7 @@
     <div class="net" id="net">Arc Testnet · 5042002</div>
   </div>
 
-  <h1>Four machines for moving money.</h1>
+  <h1>Five machines for moving money.</h1>
   <p class="lede">Each one does something conventional payments handle badly, and each is small enough to read in an afternoon. They share a chain, a stablecoin, and a rule: <b>none of them has an admin key, and none can hold your money longer than the mechanic requires.</b></p>
 
   <div class="strip">
@@ -249,6 +261,35 @@
     <p class="m-addr">0xb3Ce8d295BB73c71F219130f532b348534615a61 · <a href="https://testnet.arcscan.app/address/0xb3Ce8d295BB73c71F219130f532b348534615a61" target="_blank" rel="noopener">verified source</a></p>
   </article>
 
+  <!-- RECKONING -->
+  <article class="machine" style="--ac:var(--chalk)">
+    <div class="m-body">
+      <div class="m-top">
+        <h2 class="m-name" style="margin:0">Reckoning</h2>
+        <span class="m-kind">Shared expense ledgers</span>
+      </div>
+      <p class="m-line">Who owes what, and then actually paying it.</p>
+      <p>Six people on a trip, everyone fronting something. Working out the split takes ten minutes; collecting it takes three weeks of reminders. Here the balance and the payment are the same object — debtors pay into the ledger, creditors draw out, and nobody's waiting on one particular person to get round to it.</p>
+
+      <div class="demo">
+        <p class="demo-lab">After a weekend · every position nets to zero</p>
+        <div class="rail">
+          <div class="rrow"><span>ann</span><span class="rtrack"><span class="rbar p" style="width:50%"></span></span><span class="rval p">+647</span></div>
+          <div class="rrow"><span>cal</span><span class="rtrack"><span class="rbar n" style="width:22%"></span></span><span class="rval n">−287</span></div>
+          <div class="rrow"><span>eli</span><span class="rtrack"><span class="rbar n" style="width:17%"></span></span><span class="rval n">−224</span></div>
+          <div class="rrow"><span>fay</span><span class="rtrack"><span class="rbar n" style="width:6.6%"></span></span><span class="rval n">−86</span></div>
+        </div>
+      </div>
+
+      <p class="m-live" id="liveLedger">Reading the chain…</p>
+      <div class="m-acts">
+        <a class="go" href="./reckoning.html">Open it</a>
+        <a class="go sec" href="./reckoning-guide.html">What is this?</a>
+      </div>
+    </div>
+    <p class="m-addr">0x935432a9bb750B515890a3dFd35c3b2AE05a08EC · <a href="https://testnet.arcscan.app/address/0x935432a9bb750B515890a3dFd35c3b2AE05a08EC" target="_blank" rel="noopener">verified source</a></p>
+  </article>
+
   <h2>Why these are cheap enough to bother with</h2>
   <p class="body">All three run on Arc, where USDC is the network's own gas token. A payer needs nothing but the dollars they're already sending — no second token, no bridge, no explaining what a wallet is before they can hand you twenty bucks. Settlement is final in under a second and the fee is a fraction of a cent, which is what makes splitting an 850-dollar gig four ways worth doing onchain instead of on a spreadsheet.</p>
 
@@ -261,7 +302,7 @@
 
   <footer>
     Arc Testnet, chain 5042002 · explorer <a href="https://testnet.arcscan.app" target="_blank" rel="noopener">testnet.arcscan.app</a><br>
-    All four verified onchain — read the source before you trust the page.
+    All five verified onchain — read the source before you trust the page.
   </footer>
 </div>
 
@@ -271,6 +312,7 @@ const TILL="0x8be1e1F32EBcD7Cb8a8c844bb4506b6C73181B6E";
 const STREAM="0xc85B727f88C3D8daE88d404411C16d1D8f7a5015";
 const AUCTION="0x2509FC4E05BF42c3E7B739f2B19d62fBD2b2f5e2";
 const MARKET="0xb3Ce8d295BB73c71F219130f532b348534615a61";
+const LEDGER="0x935432a9bb750B515890a3dFd35c3b2AE05a08EC";
 
 const pool=RPCS.map(u=>new ethers.JsonRpcProvider(u));
 async function call(addr,abi,fn){
@@ -317,6 +359,12 @@ const f6=v=>Number(ethers.formatUnits(v,6)).toLocaleString("en-US",{minimumFract
     const made=n>0n?n-1n:0n;
     $("liveMarket").innerHTML="Live: <b>"+made.toString()+"</b> market"+(made===1n?"":"s")+" opened so far.";
   }catch(_){ $("liveMarket").textContent="Chain read failed — the public RPCs throttle under load. The app below still works."; }
+
+  try{
+    const n=await call(LEDGER,["function nextId() view returns (uint256)"],c=>c.nextId());
+    const made=n>0n?n-1n:0n;
+    $("liveLedger").innerHTML="Live: <b>"+made.toString()+"</b> ledger"+(made===1n?"":"s")+" started so far.";
+  }catch(_){ $("liveLedger").textContent="Chain read failed — the public RPCs throttle under load. The app below still works."; }
 })();
 </script>
 </body>
